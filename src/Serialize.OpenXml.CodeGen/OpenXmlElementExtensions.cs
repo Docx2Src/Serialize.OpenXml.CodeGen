@@ -31,7 +31,7 @@ using Serialize.OpenXml.CodeGen.Extentions;
 namespace Serialize.OpenXml.CodeGen
 {
     /// <summary>
-    /// Static class that converts <see cref="OpenXmlElement"/> objects
+    /// Static class that converts <see cref="OpenXmlElement"/> elements
     /// into Code DOM objects.
     /// </summary>
     public static class OpenXmlElementExtensions
@@ -418,6 +418,7 @@ namespace Serialize.OpenXml.CodeGen
             {
                 foreach (var child in e)
                 {
+                    // use recursion to generate source code for the child elements
                     result.AddRange(
                         BuildCodeStatements(child, opts, typeCounts, namespaces, out string appendName));
 
