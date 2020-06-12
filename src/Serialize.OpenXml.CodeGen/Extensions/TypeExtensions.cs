@@ -132,6 +132,17 @@ namespace Serialize.OpenXml.CodeGen.Extentions
 
         #endregion
 
+        #region Public Static Properties
+
+        /// <summary>
+        /// Gets the collection of OpenXml namespaces and their corrisponding
+        /// import aliases.
+        /// </summary>
+        public static IReadOnlyDictionary<string, string> NamespaceAliases 
+            => _namespaceAliases;
+
+        #endregion
+
         #region Public Static methods
 
         /// <summary>
@@ -203,11 +214,7 @@ namespace Serialize.OpenXml.CodeGen.Extentions
         /// </returns>
         public static CodeNamespaceImport GetCodeNamespaceImport(this Type t, NamespaceAliasOptions options)
         {
-            if (_namespaceAliases.ContainsKey(t.Namespace))
-            {
-                return options.BuildNamespaceImport(t.Namespace, _namespaceAliases[t.Namespace]);
-            }
-            return new CodeNamespaceImport(t.Namespace);
+            return t.Namespace.GetCodeNamespaceImport(options);
         }
 
         /// <summary>

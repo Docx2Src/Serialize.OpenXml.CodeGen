@@ -20,7 +20,9 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 DEALINGS IN THE SOFTWARE.
 */
 
+using DocumentFormat.OpenXml;
 using System;
+using System.CodeDom;
 using System.Globalization;
 using System.Linq;
 
@@ -32,6 +34,30 @@ namespace Serialize.OpenXml.CodeGen.Extentions
     internal static class StringExtensions
     {
         #region Public Static Methods
+
+        /// <summary>
+        /// Builds a new <see cref="CodeNamespaceImport"/> object based on the
+        /// namespace of <paramref name="t"/>.
+        /// </summary>
+        /// <param name="ns">
+        /// The <see cref="String"/> namespace name.
+        /// </param>
+        /// <param name="options"/>
+        /// The <see name="NamespaceAliasOptions"/> object to generate the
+        /// <see cref="CodeNamespaceImport"/> object with.
+        /// </param>
+        /// <returns>
+        /// A new <see cref="CodeNamespaceImport"/> for the specified type.
+        /// </returns>
+        public static CodeNamespaceImport GetCodeNamespaceImport(this string ns, NamespaceAliasOptions options)
+        {
+            if (TypeExtensions.NamespaceAliases.ContainsKey(ns))
+            {
+                return options.BuildNamespaceImport(ns, 
+                    TypeExtensions.NamespaceAliases[ns]);
+            }
+            return new CodeNamespaceImport(ns);
+        }
 
         /// <summary>
         /// Retrieves only the upper case characters from a given string.
