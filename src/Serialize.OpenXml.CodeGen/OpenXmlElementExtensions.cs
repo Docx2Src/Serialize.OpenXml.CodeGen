@@ -20,13 +20,13 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 DEALINGS IN THE SOFTWARE.
 */
 
+using DocumentFormat.OpenXml;
+using Serialize.OpenXml.CodeGen.Extentions;
 using System;
 using System.CodeDom;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using DocumentFormat.OpenXml;
-using Serialize.OpenXml.CodeGen.Extentions;
 
 namespace Serialize.OpenXml.CodeGen
 {
@@ -115,7 +115,7 @@ namespace Serialize.OpenXml.CodeGen
 
         #endregion
 
-        #region Private Static Methods
+        #region Internal Static Methods
 
         /// <summary>
         /// Builds the appropriate code objects that would build the contents of
@@ -145,7 +145,7 @@ namespace Serialize.OpenXml.CodeGen
         /// A collection of code statements and expressions that could be used to generate
         /// a new <paramref name="e"/> object from code.
         /// </returns>
-        private static CodeStatementCollection BuildCodeStatements(
+        internal static CodeStatementCollection BuildCodeStatements(
             OpenXmlElement e,
             NamespaceAliasOptions opts,
             IDictionary<Type, int> typeCounts,
@@ -156,6 +156,7 @@ namespace Serialize.OpenXml.CodeGen
             if (e is null) throw new ArgumentNullException(nameof(e));
             if (opts is null) throw new ArgumentNullException(nameof(opts));
             if (typeCounts is null) throw new ArgumentNullException(nameof(typeCounts));
+            if (namespaces is null) throw new ArgumentNullException(nameof(namespaces));
 
             // method vars
             var result = new CodeStatementCollection();
