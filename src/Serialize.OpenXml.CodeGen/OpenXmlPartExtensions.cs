@@ -358,7 +358,7 @@ namespace Serialize.OpenXml.CodeGen
             /// <inheritdoc/>
             public override int GetHashCode(Uri obj)
             {
-                return obj.AbsoluteUri.GetHashCode();
+                return obj.ToString().GetHashCode();
             }
 
             #endregion
