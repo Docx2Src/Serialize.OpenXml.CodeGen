@@ -39,7 +39,7 @@ namespace Serialize.OpenXml.CodeGen
         #region Public Static Methods
 
         /// <summary>
-        /// Converts a <see cref="OpenXmlElement"/> into a CodeDom object that can be used
+        /// Converts an <see cref="OpenXmlElement"/> into a CodeDom object that can be used
         /// to build code in a given .NET language that would build the referenced
         /// <see cref="OpenXmlElement"/>.
         /// </summary>
@@ -47,7 +47,7 @@ namespace Serialize.OpenXml.CodeGen
         /// The <see cref="OpenXmlElement"/> object to generate source code for.
         /// </param>
         /// <returns>
-        /// /// A new <see cref="CodeCompileUnit"/> containing the instructions to build
+        /// A new <see cref="CodeCompileUnit"/> containing the instructions to build
         /// the referenced <see cref="OpenXmlElement"/>.
         /// </returns>
         public static CodeCompileUnit GenerateSourceCode(this OpenXmlElement element)
