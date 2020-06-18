@@ -54,8 +54,8 @@ namespace Serialize.OpenXml.CodeGen
         /// <param name="part">
         /// The <see cref="OpenXmlPart"/> object to generate source code for.
         /// </param>
-        /// /// <returns>
-        /// /// A new <see cref="CodeCompileUnit"/> containing the instructions to build
+        /// <returns>
+        /// A new <see cref="CodeCompileUnit"/> containing the instructions to build
         /// the referenced <see cref="OpenXmlPart"/>.
         /// </returns>
         public static CodeCompileUnit GenerateSourceCode(this OpenXmlPart part)
@@ -70,7 +70,7 @@ namespace Serialize.OpenXml.CodeGen
         /// <param name="part">
         /// The <see cref="OpenXmlPart"/> object to generate source code for.
         /// </param>
-        /// /// <param name="opts">
+        /// <param name="opts">
         /// The <see cref="NamespaceAliasOptions"/> to apply to the resulting source code.
         /// </param>
         /// <returns>
@@ -87,7 +87,6 @@ namespace Serialize.OpenXml.CodeGen
             var partTypeFullName = eType.FullName; 
             var varName = eType.Name.ToCamelCase();
             var partTypeCounts = new Dictionary<string, int>();
-            var uris = new HashSet<Uri>(new UriEqualityComparer());
             var namespaces = new SortedSet<string>();
             var mainNamespace = new CodeNamespace("OpenXmlSample");
             var bluePrints = new OpenXmlPartBluePrintCollection();
