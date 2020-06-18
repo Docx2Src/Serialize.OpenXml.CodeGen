@@ -25,7 +25,6 @@ using Serialize.OpenXml.CodeGen.Extentions;
 using System;
 using System.CodeDom;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 
@@ -80,15 +79,34 @@ namespace Serialize.OpenXml.CodeGen
         /// </returns>
         public static CodeCompileUnit GenerateSourceCode(this OpenXmlPart part, NamespaceAliasOptions opts)
         {
+            CodeMethodReferenceExpression methodRef = null;
+            OpenXmlPartBluePrint mainBluePrint = null;
             var result = new CodeCompileUnit();
             var eType = part.GetType();
             var partTypeName = eType.Name;
+            var partTypeFullName = eType.FullName; 
+            var varName = eType.Name.ToCamelCase();
             var partTypeCounts = new Dictionary<string, int>();
             var uris = new HashSet<Uri>(new UriEqualityComparer());
             var namespaces = new SortedSet<string>();
             var mainNamespace = new CodeNamespace("OpenXmlSample");
-            var helperMembers = BuildCodeStatements(part, opts, partTypeCounts, namespaces, uris, out string partName);
-            var methodRef = new CodeMethodReferenceExpression(new CodeThisReferenceExpression(), partName);
+            var bluePrints = new OpenXmlPartBluePrintCollection();
+
+            // Assign the appropriate variable name
+            if (partTypeCounts.ContainsKey(partTypeFullName))
+            {
+                varName = String.Concat(varName, partTypeCounts[partTypeFullName]++);
+            }
+            else
+            {
+                partTypeCounts.Add(partTypeFullName, 1);
+            }
+
+            // Generate a new blue print for the current part to help create the main
+            // method reference then add it to the blue print collection
+            mainBluePrint = new OpenXmlPartBluePrint(part, varName);
+            bluePrints.Add(mainBluePrint);
+            methodRef = new CodeMethodReferenceExpression(new CodeThisReferenceExpression(), mainBluePrint.MethodName);
 
             // Build the entry method
             var entryMethod = new CodeMemberMethod()
@@ -98,6 +116,17 @@ namespace Serialize.OpenXml.CodeGen
                 Attributes = MemberAttributes.Public | MemberAttributes.Final
             };
             entryMethod.Parameters.Add(new CodeParameterDeclarationExpression(partTypeName, methodParamName));
+
+            // Add all of the child part references here
+            if (part.Parts != null)
+            {
+                foreach (var pair in part.Parts)
+                {
+                    entryMethod.Statements.AddRange(BuildEntryMethodCodeStatements(
+                        pair, opts, partTypeCounts, namespaces, bluePrints, methodParamName));
+                }
+            }
+
             entryMethod.Statements.Add(new CodeMethodInvokeExpression(methodRef, 
                 new CodeVariableReferenceExpression(methodParamName)));
 
@@ -108,7 +137,7 @@ namespace Serialize.OpenXml.CodeGen
                 Attributes = MemberAttributes.Public
             };
             mainClass.Members.Add(entryMethod);
-            mainClass.Members.AddRange(helperMembers);
+            mainClass.Members.AddRange(BuildHelperMethods(bluePrints, opts, namespaces));
             
             // Setup the imports
             var codeNameSpaces = new List<CodeNamespaceImport>(namespaces.Count);
@@ -131,17 +160,17 @@ namespace Serialize.OpenXml.CodeGen
         #region Internal Static Methods
 
         /// <summary>
-        /// Builds the appropriate code objects that would build the contents of an
-        /// <see cref="OpenXmlPart"/> object.
+        /// Creates the appropriate code objects needed to create the entry method for the
+        /// current request.
         /// </summary>
         /// <param name="part">
-        /// The <see cref="OpenXmlPart"/> object to build code for.
+        /// The <see cref="OpenXmlPart"/> object and relationship id to build code for.
         /// </param>
-        /// /// <param name="opts">
+        /// <param name="opts">
         /// The <see cref="NamespaceAliasOptions"/> to use during the variable naming 
         /// process.
         /// </param>
-        /// <param name="typeCounts">
+        /// /// <param name="typeCounts">
         /// A lookup <see cref="IDictionary{TKey, TValue}"/> object containing the
         /// number of times a given type was referenced.  This is used for variable naming
         /// purposes.
@@ -150,213 +179,251 @@ namespace Serialize.OpenXml.CodeGen
         /// Collection <see cref="ISet{T}"/> used to keep track of all openxml namespaces
         /// used during the process.
         /// </param>
-        /// <param name="targets">
-        /// A collection of <see cref="System.Uri"/> objects of all of the child parts that
-        /// are visited during this process.
+        /// <param name="blueprints">
+        /// The collection of <see cref="OpenXmlPartBluePrint"/> objects that have already been
+        /// visited.
         /// </param>
-        /// <param name="partName">
-        /// /// The variable name of the root <see cref="OpenXmlPart"/> object that was built
-        /// from the <paramref name="part"/>.
+        /// <param name="rootVarName">
+        /// The root variable name to use when building code statements to create new
+        /// <see cref="OpenXmlPart"/> objects.
         /// </param>
-        /// /// <returns>
+        /// <returns>
         /// A collection of code statements and expressions that could be used to generate
-        /// a new <paramref name="e"/> object from code.
+        /// a new <paramref name="part"/> object from code.
         /// </returns>
-        internal static CodeTypeMemberCollection BuildCodeStatements(
-            OpenXmlPart part,
+        internal static CodeStatementCollection BuildEntryMethodCodeStatements(
+            IdPartPair part,
             NamespaceAliasOptions opts,
             IDictionary<string, int> typeCounts,
             ISet<string> namespaces,
-            ISet<Uri> targets,
-            out string partName) 
+            OpenXmlPartBluePrintCollection blueprints,
+            string rootVarName)
         {
             // Argument validation
             if (part is null) throw new ArgumentNullException(nameof(part));
             if (opts is null) throw new ArgumentNullException(nameof(opts));
-            if (typeCounts is null) throw new ArgumentNullException(nameof(typeCounts));
-            if (namespaces is null) throw new ArgumentNullException(nameof(namespaces));
-            if (targets is null) throw new ArgumentNullException(nameof(targets));
+            if (blueprints is null) throw new ArgumentNullException(nameof(blueprints));
+            if (String.IsNullOrWhiteSpace(rootVarName)) throw new ArgumentNullException(nameof(rootVarName));
 
-            var result = new CodeTypeMemberCollection();
-            var partType = part.GetType();
+            var result = new CodeStatementCollection();
+            var partType = part.OpenXmlPart.GetType();
             var partTypeName = partType.Name;
             var partTypeFullName = partType.FullName;
-            var reType = part.RootElement?.GetType();
-            var memberNamePrefix = $"Generate{partType.Name}";
-            var parts = part.Parts != null ? new List<IdPartPair>(part.Parts) : new List<IdPartPair>();
-            var localTypeCount = new Dictionary<Type, int>();
-            var localTargets = new Dictionary<Uri, string>(new UriEqualityComparer());
-            CodeMemberMethod method = null;
+            string varName = partType.Name.ToCamelCase();
+            OpenXmlPartBluePrint bpTemp;
             CodeMethodReferenceExpression referenceExpression = null;
             CodeMethodInvokeExpression invokeExpression = null;
-            Type tmpType = null;
-            string partVarName = null;
-            string subPartTypeName = null;
+            CodeMethodReferenceExpression methodReference = null;
+            
+            // Add blank code line
+            void addBlankLine() => result.Add(new CodeSnippetStatement(String.Empty));
 
             // Make sure that the namespace for the current part is captured
             namespaces.Add(partType.Namespace);
 
+            // Assign the appropriate variable name
             if (typeCounts.ContainsKey(partTypeFullName))
             {
-                partName = String.Concat(memberNamePrefix, typeCounts[partTypeFullName]++);
+                varName = String.Concat(varName, typeCounts[partTypeFullName]++);
             }
             else
             {
-                partName = memberNamePrefix;
                 typeCounts.Add(partTypeFullName, 1);
             }
 
-            // Setup the first method
-            method = new CodeMemberMethod()
-            {
-                Name = partName,
-                Attributes = MemberAttributes.Private | MemberAttributes.Final,
-                ReturnType = new CodeTypeReference()
-            };
-            method.Parameters.Add(new CodeParameterDeclarationExpression(partTypeName, methodParamName));
+            // Setup the blueprint
+            bpTemp = new OpenXmlPartBluePrint(part.OpenXmlPart, varName);
 
-            // Add blank code line
-            void addBlankLine() => method.Statements.Add(new CodeSnippetStatement(String.Empty));
+            // Setup the add new part statement for the current OpenXmlPart object
+            referenceExpression = new CodeMethodReferenceExpression(
+                new CodeVariableReferenceExpression(rootVarName), "AddNewPart",
+                new CodeTypeReference(partTypeName));
 
-            // Loop through and build all of the child parts of the current Part
-            foreach (var p in parts)
-            {
-                // Check to see if the current part has been visited/created previously
-                if (!targets.Add(p.OpenXmlPart.Uri))
-                {
-                    // TODO: If the current part has been previously visited, 
-                    // TODO: the part's original parent needs to be found and referenced
-                    // TODO: in the resulting code statements. For now, just continue the loop.
-                    continue;
-                }
+            invokeExpression = new CodeMethodInvokeExpression(referenceExpression,
+                new CodePrimitiveExpression(part.RelationshipId));
 
-                tmpType = p.OpenXmlPart.GetType();
-                partVarName = tmpType.Name.ToCamelCase();
-                subPartTypeName = tmpType.GetObjectTypeName(opts.Order);
+            result.Add(new CodeVariableDeclarationStatement(partTypeName, varName, invokeExpression));
 
-                if (typeCounts.ContainsKey(tmpType.FullName))
-                {
-                    partVarName = String.Concat(partVarName, typeCounts[tmpType.FullName]++);
-                }
-                else
-                {
-                    typeCounts.Add(tmpType.FullName, 1);
-                }
-
-                // Initialize the part in OpenXml's own unique way
-                referenceExpression = new CodeMethodReferenceExpression(
-                    new CodeVariableReferenceExpression(methodParamName), "AddNewPart",
-                    new CodeTypeReference(subPartTypeName));
-
-                invokeExpression = new CodeMethodInvokeExpression(referenceExpression,
-                    new CodePrimitiveExpression(p.RelationshipId));
-
-                method.Statements.Add(new CodeVariableDeclarationStatement(subPartTypeName, partVarName, invokeExpression));
-
-                // Create the part generation method
-                result.AddRange(BuildCodeStatements(p.OpenXmlPart, opts, typeCounts, namespaces, targets, out string genMethod));
-                
-                if (!String.IsNullOrWhiteSpace(genMethod))
-                {
-                    referenceExpression = new CodeMethodReferenceExpression(
-                        new CodeThisReferenceExpression(), genMethod);
-                    invokeExpression = new CodeMethodInvokeExpression(referenceExpression,
-                        new CodeVariableReferenceExpression(partVarName));
-                    method.Statements.Add(invokeExpression);
-                }
-                addBlankLine();                
-            }
-
-            // Code part elements next
-            if (part.RootElement is null)
-            {
-                // If the root element is not present (aka: null) then perform a simple feed
-                // dump of the part in the current method
-                const string memName = "mem";
-                const string b64Name = "base64";
-
-                // Add the necessary namespaces by hand to the namespace set
-                namespaces.Add("System");
-                namespaces.Add("System.IO");
-
-                using (var partStream = part.GetStream(FileMode.Open, FileAccess.Read))
-                {
-                    using (var mem = new MemoryStream())
-                    {
-                        partStream.CopyTo(mem);
-                        method.Statements.Add(new CodeVariableDeclarationStatement(typeof(string), b64Name,
-                            new CodePrimitiveExpression(Convert.ToBase64String(mem.ToArray()))));
-                    }
-                }
-                addBlankLine();
-
-                var fromBase64 = new CodeMethodReferenceExpression(new CodeVariableReferenceExpression("Convert"),
-                    "FromBase64String");
-                var invokeFromBase64 = new CodeMethodInvokeExpression(fromBase64, new CodeVariableReferenceExpression("base64"));
-                var createStream = new CodeObjectCreateExpression(new CodeTypeReference("MemoryStream"),
-                    invokeFromBase64, new CodePrimitiveExpression(false));
-                var feedData = new CodeMethodReferenceExpression(new CodeVariableReferenceExpression(methodParamName), "FeedData");
-                var invokeFeedData = new CodeMethodInvokeExpression(feedData, new CodeVariableReferenceExpression(memName));
-                var disposeMem = new CodeMethodReferenceExpression(new CodeVariableReferenceExpression(memName), "Dispose");
-                var invokeDisposeMem = new CodeMethodInvokeExpression(feedData, new CodeVariableReferenceExpression(memName));
-
-                // Setup the try statement
-                var tryAndCatch = new CodeTryCatchFinallyStatement();
-                tryAndCatch.TryStatements.Add(invokeFeedData);
-                tryAndCatch.FinallyStatements.Add(invokeDisposeMem);
-
-                // Put all of the pieces together
-                method.Statements.Add(new CodeVariableDeclarationStatement("Stream", memName, createStream));
-                method.Statements.Add(tryAndCatch);
-            }
-            else
-            {
-                var rootElementType = part.RootElement?.GetType();
-
-                // Build the element details of the requested part for the current method
-                method.Statements.AddRange(
-                    OpenXmlElementExtensions.BuildCodeStatements(part.RootElement,
-                    opts, localTypeCount, namespaces, out string rootElementVar));
-
-                // Now finish up the current method by assigning the OpenXmlElement code statements
-                // back to the appropriate property of the part parameter
-                if (rootElementType != null && !String.IsNullOrWhiteSpace(rootElementVar))
-                {
-                    foreach (var paramProp in partType.GetProperties())
-                    {
-                        if (paramProp.PropertyType == rootElementType)
-                        {
-                            var varRef = new CodeVariableReferenceExpression(rootElementVar);
-                            var paramRef = new CodeVariableReferenceExpression(methodParamName);
-                            var propRef = new CodePropertyReferenceExpression(paramRef, paramProp.Name);
-                            method.Statements.Add(new CodeAssignStatement(propRef, varRef));
-                            break;
-                        }
-                    }
-                }
-            }
+            // Add the call to the method to populate the current OpenXmlPart object
+            methodReference = new CodeMethodReferenceExpression(new CodeThisReferenceExpression(), bpTemp.MethodName);
+            result.Add(new CodeMethodInvokeExpression(methodReference,
+                new CodeVariableReferenceExpression(varName)));
 
             // Add the appropriate code statements if the current part
             // contains any hyperlink relationships
-            if (part.HyperlinkRelationships.Count() > 0)
+            if (part.OpenXmlPart.HyperlinkRelationships.Count() > 0)
             {
                 // Add a line break first for easier reading
                 addBlankLine();
-                method.Statements.AddRange(
-                    part.HyperlinkRelationships.BuildHyperlinkRelationshipStatements(partName));
+                result.AddRange(
+                    part.OpenXmlPart.HyperlinkRelationships.BuildHyperlinkRelationshipStatements(varName));
             }
 
             // Add the appropriate code statements if the current part
             // contains any non-hyperlink external relationships
-            if (part.ExternalRelationships.Count() > 0)
+            if (part.OpenXmlPart.ExternalRelationships.Count() > 0)
             {
                 // Add a line break first for easier reading
                 addBlankLine();
-                method.Statements.AddRange(
-                    part.ExternalRelationships.BuildExternalRelationshipStatements(partName));
+                result.AddRange(
+                    part.OpenXmlPart.ExternalRelationships.BuildExternalRelationshipStatements(varName));
+            }
+            
+            // put a line break before going through the child parts
+            addBlankLine();
+
+            // Add the current blueprint to the collection
+            blueprints.Add(bpTemp);
+
+            // Now check to see if there are any child parts for the current OpenXmlPart object.
+            if (bpTemp.Part.Parts != null)
+            {
+                OpenXmlPartBluePrint childBluePrint = null;
+
+                foreach (var p in bpTemp.Part.Parts)
+                {
+                    // If the current child object has already been created, simply add a reference to
+                    // said object using the AddPart method.
+                    if (blueprints.Contains(p.OpenXmlPart.Uri))
+                    {
+                        childBluePrint = blueprints[p.OpenXmlPart.Uri];
+
+                        referenceExpression = new CodeMethodReferenceExpression(
+                            new CodeVariableReferenceExpression(varName), "AddPart",
+                            new CodeTypeReference(p.OpenXmlPart.GetType().Name));
+
+                        invokeExpression = new CodeMethodInvokeExpression(referenceExpression,
+                            new CodeVariableReferenceExpression(childBluePrint.VariableName),
+                            new CodePrimitiveExpression(p.RelationshipId));
+
+                        result.Add(invokeExpression);                        
+                        continue;
+                    }
+
+                    // If this is a new part, call this method with the current part's details
+                    result.AddRange(BuildEntryMethodCodeStatements(p, opts, typeCounts, namespaces, blueprints, varName));
+                }
+            }
+            
+            return result;
+        }
+
+        /// <summary>
+        /// Creates the appropriate helper methods for all of the <see cref="OpenXmlPart"/> objects 
+        /// for the current request.
+        /// </summary>
+        /// <param name="blueprints">
+        /// The collection of <see cref="OpenXmlPartBluePrint"/> objects that have already been
+        /// visited.
+        /// </param>
+        /// <param name="opts">
+        /// The <see cref="NamespaceAliasOptions"/> to use during the variable naming 
+        /// process.
+        /// </param>
+        /// <param name="namespaces">
+        /// Collection <see cref="ISet{T}"/> used to keep track of all openxml namespaces
+        /// used during the process.
+        /// </param>
+        /// <returns>
+        /// A collection of code statements and expressions that could be used to generate
+        /// a new <paramref name="part"/> object from code.
+        /// </returns>
+        internal static CodeTypeMemberCollection BuildHelperMethods(
+            OpenXmlPartBluePrintCollection bluePrints,
+            NamespaceAliasOptions opts,
+            ISet<string> namespaces)
+        {
+            if (bluePrints == null) throw new ArgumentNullException(nameof(bluePrints));
+            var result = new CodeTypeMemberCollection();
+            var localTypeCounts = new Dictionary<Type, int>();
+            CodeMemberMethod method = null;
+            Type rootElementType = null;
+
+            // Add blank code line
+            void addBlankLine() => method.Statements.Add(new CodeSnippetStatement(String.Empty));
+
+            foreach (var bp in bluePrints)
+            {
+                // Setup the first method
+                method = new CodeMemberMethod()
+                {
+                    Name = bp.MethodName,
+                    Attributes = MemberAttributes.Private | MemberAttributes.Final,
+                    ReturnType = new CodeTypeReference()
+                };
+                method.Parameters.Add(new CodeParameterDeclarationExpression(bp.Part.GetType().Name, methodParamName));
+
+                // Code part elements next
+                if (bp.Part.RootElement is null)
+                {
+                    // If the root element is not present (aka: null) then perform a simple feed
+                    // dump of the part in the current method
+                    const string memName = "mem";
+                    const string b64Name = "base64";
+
+                    // Add the necessary namespaces by hand to the namespace set
+                    namespaces.Add("System");
+                    namespaces.Add("System.IO");
+
+                    using (var partStream = bp.Part.GetStream(FileMode.Open, FileAccess.Read))
+                    {
+                        using (var mem = new MemoryStream())
+                        {
+                            partStream.CopyTo(mem);
+                            method.Statements.Add(new CodeVariableDeclarationStatement(typeof(string), b64Name,
+                                new CodePrimitiveExpression(Convert.ToBase64String(mem.ToArray()))));
+                        }
+                    }
+                    addBlankLine();
+
+                    var fromBase64 = new CodeMethodReferenceExpression(new CodeVariableReferenceExpression("Convert"),
+                        "FromBase64String");
+                    var invokeFromBase64 = new CodeMethodInvokeExpression(fromBase64, new CodeVariableReferenceExpression("base64"));
+                    var createStream = new CodeObjectCreateExpression(new CodeTypeReference("MemoryStream"),
+                        invokeFromBase64, new CodePrimitiveExpression(false));
+                    var feedData = new CodeMethodReferenceExpression(new CodeVariableReferenceExpression(methodParamName), "FeedData");
+                    var invokeFeedData = new CodeMethodInvokeExpression(feedData, new CodeVariableReferenceExpression(memName));
+                    var disposeMem = new CodeMethodReferenceExpression(new CodeVariableReferenceExpression(memName), "Dispose");
+                    var invokeDisposeMem = new CodeMethodInvokeExpression(feedData, new CodeVariableReferenceExpression(memName));
+
+                    // Setup the try statement
+                    var tryAndCatch = new CodeTryCatchFinallyStatement();
+                    tryAndCatch.TryStatements.Add(invokeFeedData);
+                    tryAndCatch.FinallyStatements.Add(invokeDisposeMem);
+
+                    // Put all of the pieces together
+                    method.Statements.Add(new CodeVariableDeclarationStatement("Stream", memName, createStream));
+                    method.Statements.Add(tryAndCatch);
+                }
+                else
+                {
+                    rootElementType = bp.Part.RootElement?.GetType();
+
+                    // Build the element details of the requested part for the current method
+                    method.Statements.AddRange(
+                        OpenXmlElementExtensions.BuildCodeStatements(bp.Part.RootElement,
+                        opts, localTypeCounts, namespaces, out string rootElementVar));
+
+                    // Now finish up the current method by assigning the OpenXmlElement code statements
+                    // back to the appropriate property of the part parameter
+                    if (rootElementType != null && !String.IsNullOrWhiteSpace(rootElementVar))
+                    {
+                        foreach (var paramProp in bp.Part.GetType().GetProperties())
+                        {
+                            if (paramProp.PropertyType == rootElementType)
+                            {
+                                var varRef = new CodeVariableReferenceExpression(rootElementVar);
+                                var paramRef = new CodeVariableReferenceExpression(methodParamName);
+                                var propRef = new CodePropertyReferenceExpression(paramRef, paramProp.Name);
+                                method.Statements.Add(new CodeAssignStatement(propRef, varRef));
+                                break;
+                            }
+                        }
+                    }
+                }
+                result.Add(method);
             }
 
-            result.Add(method);
             return result;
         }
 
@@ -463,29 +530,5 @@ namespace Serialize.OpenXml.CodeGen
         }
 
         #endregion
-
-        /// <summary>
-        /// Equality comparer class used to ensure that circular part references are avoided when trying
-        /// to build source code for <see cref="OpenXmlPart"/> objects.
-        /// </summary>
-        private sealed class UriEqualityComparer : EqualityComparer<Uri>
-        {
-            #region Public Instance Methods 
-            
-            /// <inheritdoc/>
-            public override bool Equals(Uri x, Uri y)
-            {
-                if (x == null || y == null) return false;
-                return x == y;
-            }
-
-            /// <inheritdoc/>
-            public override int GetHashCode(Uri obj)
-            {
-                return obj.ToString().GetHashCode();
-            }
-
-            #endregion
-        }
     }
 }

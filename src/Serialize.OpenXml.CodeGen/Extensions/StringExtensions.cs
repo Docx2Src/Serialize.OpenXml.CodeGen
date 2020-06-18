@@ -20,7 +20,6 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 DEALINGS IN THE SOFTWARE.
 */
 
-using DocumentFormat.OpenXml;
 using System;
 using System.CodeDom;
 using System.Globalization;
