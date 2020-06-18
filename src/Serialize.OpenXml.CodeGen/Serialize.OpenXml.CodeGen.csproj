@@ -1,7 +1,17 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <Version>0.1.0.0</Version>
+    <Authors>Ryan Boggs</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/rmboggs/Serialize.OpenXml.CodeGen</PackageProjectUrl>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <RepositoryUrl>https://github.com/rmboggs/Serialize.OpenXml.CodeGen</RepositoryUrl>
+    <PackageReleaseNotes>First alpha release</PackageReleaseNotes>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>openxml codedom document source</PackageTags>
+    <Description>.NET assembly class responsible for converting OpenXml based documents into corrisponding dotnet code</Description>
   </PropertyGroup>
 
   <ItemGroup>
