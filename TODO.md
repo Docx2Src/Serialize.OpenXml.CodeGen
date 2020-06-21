@@ -11,6 +11,7 @@ This is a simple list of current planned items to work on
 * Setup Wiki
 * Add examples
 * Add test cases
+* Simplify code generation, if possible
 
 # Future
 * Investigate using rosyln to generate source code
