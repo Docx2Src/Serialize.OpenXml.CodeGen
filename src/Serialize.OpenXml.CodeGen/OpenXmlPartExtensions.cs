@@ -383,7 +383,7 @@ namespace Serialize.OpenXml.CodeGen
                     var feedData = new CodeMethodReferenceExpression(new CodeVariableReferenceExpression(methodParamName), "FeedData");
                     var invokeFeedData = new CodeMethodInvokeExpression(feedData, new CodeVariableReferenceExpression(memName));
                     var disposeMem = new CodeMethodReferenceExpression(new CodeVariableReferenceExpression(memName), "Dispose");
-                    var invokeDisposeMem = new CodeMethodInvokeExpression(feedData, new CodeVariableReferenceExpression(memName));
+                    var invokeDisposeMem = new CodeMethodInvokeExpression(disposeMem);
 
                     // Setup the try statement
                     var tryAndCatch = new CodeTryCatchFinallyStatement();

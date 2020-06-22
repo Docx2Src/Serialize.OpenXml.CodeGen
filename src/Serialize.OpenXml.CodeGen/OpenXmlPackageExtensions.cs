@@ -82,9 +82,34 @@ namespace Serialize.OpenXml.CodeGen
             CodeMemberMethod createParts;
             CodeTypeDeclaration mainClass;
             CodeTryCatchFinallyStatement tryAndCatch;
+            CodeFieldReferenceExpression docTypeVarRef = null;
+            Type docTypeEnum = null;
+            string docTypeEnumVal = null;
             
             // Add all initial namespace names first
             namespaces.Add("System.IO");
+
+            // The OpenXmlDocument derived parts all contain a property called "DocumentType"
+            // but the property types differ depending on the derived part.  Need to get both
+            // the enum name of selected value to use as a parameter for the Create statement
+            if (pkg is PresentationDocument)
+            {
+                var docType = ((PresentationDocument)pkg).DocumentType;
+                docTypeEnumVal = docType.ToString();
+                docTypeEnum = docType.GetType();
+            }
+            else if (pkg is SpreadsheetDocument)
+            {
+                var docType = ((SpreadsheetDocument)pkg).DocumentType;
+                docTypeEnumVal = docType.ToString();
+                docTypeEnum = docType.GetType();
+            }
+            else if (pkg is WordprocessingDocument)
+            {
+                var docType = ((WordprocessingDocument)pkg).DocumentType;
+                docTypeEnumVal = docType.ToString();
+                docTypeEnum = docType.GetType();
+            }
 
             // Create the entry method
             entryPoint = new CodeMemberMethod()
@@ -98,12 +123,22 @@ namespace Serialize.OpenXml.CodeGen
             // Create package declaration expression first
             entryPoint.Statements.Add(new CodeVariableDeclarationStatement(pkgTypeName, pkgVarName));
             
+            // Add the required DocumentType parameter here, if available
+            if (docTypeEnum != null)
+            {
+                namespaces.Add(docTypeEnum.Namespace);
+
+                var simpleFieldRef = new CodeVariableReferenceExpression(docTypeEnum.GetObjectTypeName(opts.Order));
+                docTypeVarRef = new CodeFieldReferenceExpression(simpleFieldRef, docTypeEnumVal);
+            }
+            
             // initialize package var
             var pkgCreateMethod = new CodeMethodReferenceExpression(
                 new CodeTypeReferenceExpression(pkgTypeName), 
                 "Create");
             var pkgCreateInvoke = new CodeMethodInvokeExpression(pkgCreateMethod, 
-                new CodeVariableReferenceExpression(paramName));
+                new CodeVariableReferenceExpression(paramName),
+                docTypeVarRef);
             var initializePkg = new CodeAssignStatement(
                 new CodeVariableReferenceExpression(pkgVarName),
                 pkgCreateInvoke);
