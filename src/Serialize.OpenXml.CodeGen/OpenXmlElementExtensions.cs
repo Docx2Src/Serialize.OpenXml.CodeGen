@@ -291,6 +291,9 @@ namespace Serialize.OpenXml.CodeGen
             }
 
             // Build the initializer for the current element
+            elementName = elementType.GenerateVariableName(typeCounts);
+
+            /*
             if (typeCounts.ContainsKey(elementType))
             {
                 elementName = String.Format("{0}{1}",
@@ -302,7 +305,8 @@ namespace Serialize.OpenXml.CodeGen
                 elementName = elementType.Name.ToCamelCase();
                 typeCounts.Add(elementType, 1);
             }
-
+            //*/
+            
             // Include the alias prefix if the current element belongs to a class
             // within the namespaces identified to needing an alias
             junk = elementType.GetObjectTypeName(opts.Order);

@@ -26,6 +26,7 @@ using System;
 using System.CodeDom;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace Serialize.OpenXml.CodeGen
 {
@@ -78,6 +79,7 @@ namespace Serialize.OpenXml.CodeGen
             var namespaces = new SortedSet<string>();
             var mainNamespace = new CodeNamespace("OpenXmlSample");
             var bluePrints = new OpenXmlPartBluePrintCollection();
+            CodeConditionStatement conditionStatement;
             CodeMemberMethod entryPoint;
             CodeMemberMethod createParts;
             CodeTypeDeclaration mainClass;
@@ -121,7 +123,8 @@ namespace Serialize.OpenXml.CodeGen
             entryPoint.Parameters.Add(new CodeParameterDeclarationExpression(typeof(Stream).Name, paramName));
             
             // Create package declaration expression first
-            entryPoint.Statements.Add(new CodeVariableDeclarationStatement(pkgTypeName, pkgVarName));
+            entryPoint.Statements.Add(new CodeVariableDeclarationStatement(pkgTypeName, pkgVarName, 
+                new CodePrimitiveExpression(null)));
             
             // Add the required DocumentType parameter here, if available
             if (docTypeEnum != null)
@@ -166,8 +169,17 @@ namespace Serialize.OpenXml.CodeGen
             tryAndCatch.TryStatements.Add(new CodeSnippetStatement(String.Empty));
             tryAndCatch.TryStatements.Add(partsCreateInvoke);
 
+            // If statement to ensure pkgVarName is not null before trying to dispose
+            conditionStatement = new CodeConditionStatement(
+                new CodeBinaryOperatorExpression(
+                    new CodeVariableReferenceExpression(pkgVarName),
+                    CodeBinaryOperatorType.IdentityInequality,
+                    new CodePrimitiveExpression(null)));
+
+            conditionStatement.TrueStatements.Add(pkgDisposeInvoke);
+
             // Finally statements
-            tryAndCatch.FinallyStatements.Add(pkgDisposeInvoke);
+            tryAndCatch.FinallyStatements.Add(conditionStatement);
             entryPoint.Statements.Add(tryAndCatch);
 
             // Create the CreateParts method
@@ -182,8 +194,75 @@ namespace Serialize.OpenXml.CodeGen
             // Add all of the child part references here
             if (pkg.Parts != null)
             {
+                var customNewPartTypes = new Type[] { typeof(PresentationPart), typeof(WorkbookPart), typeof(MainDocumentPart) };
+                OpenXmlPartBluePrint bpTemp = null;
+                CodeMethodReferenceExpression referenceExpression = null;
+                CodeMethodInvokeExpression invokeExpression = null;
+                CodeMethodReferenceExpression methodReference = null;
+                Type currentPartType = null;
+                string varName = null;
+                string initMethodName = null;
+                string mainPartTypeName = null;
+
                 foreach (var pair in pkg.Parts)
                 {
+                    // Need special handling rules for WorkbookPart, MainDocumentPart, and Presentation Part
+                    // objects.  They cannot be created using the usual "AddNewPart" methods, unfortunately.
+                    currentPartType = pair.OpenXmlPart.GetType();
+                    if (customNewPartTypes.Contains(currentPartType))
+                    {
+                        namespaces.Add(currentPartType.Namespace);
+                        mainPartTypeName = currentPartType.Name;
+                        if (pair.OpenXmlPart is PresentationPart)
+                        {
+                            varName = "presentationPart";
+                            initMethodName = "AddPresentationPart";
+                        }
+                        else if (pair.OpenXmlPart is WorkbookPart)
+                        {
+                            varName = "workbookPart";
+                            initMethodName = "AddWorkbookPart";
+                        }
+                        else if (pair.OpenXmlPart is MainDocumentPart)
+                        {
+                            varName = "mainDocumentPart";
+                            initMethodName = "AddMainDocumentPart";
+                        }
+
+                        // Setup the blueprint
+                        bpTemp = new OpenXmlPartBluePrint(pair.OpenXmlPart, varName);
+
+                        // Setup the add new part statement for the current OpenXmlPart object
+                        referenceExpression = new CodeMethodReferenceExpression(
+                            new CodeVariableReferenceExpression(pkgVarName), initMethodName);
+
+                        invokeExpression = new CodeMethodInvokeExpression(referenceExpression);
+
+                        createParts.Statements.Add(new CodeVariableDeclarationStatement(mainPartTypeName, varName, invokeExpression));
+
+                        // Add the call to the method to populate the current OpenXmlPart object
+                        methodReference = new CodeMethodReferenceExpression(new CodeThisReferenceExpression(), bpTemp.MethodName);
+                        createParts.Statements.Add(new CodeMethodInvokeExpression(methodReference,
+                            new CodeVariableReferenceExpression(varName)));
+
+                        // Add the current main part to the collection of blueprints to ensure that the appropriate 'Generate*'
+                        // method is added to the collection of helper methods.
+                        bluePrints.Add(bpTemp);
+
+                        // Add a blank line for clarity
+                        createParts.Statements.Add(new CodeSnippetStatement(String.Empty));
+
+                        // now create the child parts for the current one an continue the loop to avoid creating
+                        // an additional invalid 'AddNewPart' method for the current main part.
+                        foreach (var child in pair.OpenXmlPart.Parts)
+                        {
+                            createParts.Statements.AddRange(
+                                OpenXmlPartExtensions.BuildEntryMethodCodeStatements(
+                                    child, opts, partTypeCounts, namespaces, bluePrints, varName));
+                        }
+                        continue;
+                    }
+
                     createParts.Statements.AddRange(
                         OpenXmlPartExtensions.BuildEntryMethodCodeStatements(
                             pair, opts, partTypeCounts, namespaces, bluePrints, pkgVarName));

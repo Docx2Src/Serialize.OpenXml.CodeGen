@@ -162,12 +162,18 @@ namespace Serialize.OpenXml.CodeGen.Extentions
         public static string GenerateVariableName(this Type t, IDictionary<Type, int> typeCount)
         {
             string tmp;  // Hold the generated name
+            string nsPrefix = String.Empty;
+
+            if (NamespaceAliases.ContainsKey(t.Namespace))
+            {
+                nsPrefix = NamespaceAliases[t.Namespace].ToLowerInvariant();
+            }
 
             // Simply return the generated name if the current
             // type is not considered generic.
             if (!t.IsGenericType)
             {
-                tmp = t.Name.ToCamelCase();
+                tmp = String.Concat(nsPrefix, t.Name).ToCamelCase();
                 if (typeCount != null && typeCount.ContainsKey(t))
                 {
                     return String.Concat(tmp, ++typeCount[t]);
@@ -186,14 +192,14 @@ namespace Serialize.OpenXml.CodeGen.Extentions
 
             if (typeCount != null && typeCount.ContainsKey(t))
             {
-                return String.Concat(
+                return String.Concat(nsPrefix,
                     tmp.Substring(0, tmp.IndexOf("`")),
                     sb.ToString(),
                     ++typeCount[t]).ToCamelCase();
             }
 
             typeCount.Add(t, 0);
-            return String.Concat(
+            return String.Concat(nsPrefix,
                 tmp.Substring(0, tmp.IndexOf("`")),
                 sb.ToString()).ToCamelCase();
         }
