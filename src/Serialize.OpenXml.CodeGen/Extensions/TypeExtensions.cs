@@ -164,6 +164,7 @@ namespace Serialize.OpenXml.CodeGen.Extentions
             string tmp;  // Hold the generated name
             string nsPrefix = String.Empty;
 
+            // Include the namespace alias as part of the variable name
             if (NamespaceAliases.ContainsKey(t.Namespace))
             {
                 nsPrefix = NamespaceAliases[t.Namespace].ToLowerInvariant();

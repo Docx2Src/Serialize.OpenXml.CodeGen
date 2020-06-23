@@ -23,7 +23,10 @@ DEALINGS IN THE SOFTWARE.
 using System;
 using System.CodeDom;
 using System.Globalization;
+using System.IO;
 using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Serialize.OpenXml.CodeGen.Extentions
 {
@@ -56,6 +59,45 @@ namespace Serialize.OpenXml.CodeGen.Extentions
                     TypeExtensions.NamespaceAliases[ns]);
             }
             return new CodeNamespaceImport(ns);
+        }
+
+        /// <summary>
+        /// Strips out the standard header text that is included when a
+        /// <see cref="System.CodeDom.Provider.CodeDomProvider"/> derived class
+        /// generates dotnet code.
+        /// </summary>
+        /// <param name="raw">
+        /// The raw code <see cref="string"/> produced by the 
+        /// <see cref="System.CodeDom.Provider.CodeDomProvider"/> derived class.
+        /// </param>
+        /// <returns>
+        /// A new code <see cref="string"/> value with the default headers removed.
+        /// </returns>
+        public static string RemoveOutputHeaders(this string raw)
+        {
+            var indicator = new string('-', 78);
+            var sb = new StringBuilder();
+            bool inHeader = false;
+
+            using (var sr = new StringReader(raw))
+            {
+                string currentLine = sr.ReadLine();
+                while (currentLine != null)
+                {
+                    if (currentLine.EndsWith(indicator))
+                    {
+                        if (inHeader) currentLine = sr.ReadLine();
+                        inHeader = !inHeader;
+                    }
+                    if (Regex.IsMatch(currentLine, "\".*\\\'.*\""))
+                    {
+                        currentLine = currentLine.Replace("\\'", "'");
+                    }
+                    if (!inHeader) sb.AppendLine(currentLine);
+                    currentLine = sr.ReadLine();
+                }
+            }
+            return sb.ToString();
         }
 
         /// <summary>
