@@ -207,7 +207,7 @@ namespace Serialize.OpenXml.CodeGen
 
                 foreach (var pair in pkg.Parts)
                 {
-                    // Need special handling rules for WorkbookPart, MainDocumentPart, and Presentation Part
+                    // Need special handling rules for WorkbookPart, MainDocumentPart, and PresentationPart
                     // objects.  They cannot be created using the usual "AddNewPart" methods, unfortunately.
                     currentPartType = pair.OpenXmlPart.GetType();
                     if (customNewPartTypes.Contains(currentPartType))
