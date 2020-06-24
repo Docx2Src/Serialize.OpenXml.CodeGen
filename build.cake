@@ -154,7 +154,8 @@ Task("Zip-NetCore")
             var netCoreAppBin = String.Concat(project.Value, "/bin/", configuration);
             var netCoreAppBinFiles = String.Concat(netCoreAppBin, "/**/*");
             //*
-            Zip(netCoreAppBin, zipRootDir.CombineWithFilePath(project.Key + fileZipSuffix),
+            Zip(netCoreAppBin, 
+                zipRootDir.CombineWithFilePath(String.Concat(project.Key, ".", version, fileZipSuffix)),
                 GetFiles(netCoreAppBinFiles));
             //*/
         }
