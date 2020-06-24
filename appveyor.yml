@@ -1,0 +1,13 @@
+version: 0.1.0.{build}
+os: Visual Studio 2017
+install:
+
+build_script:
+- cmd: dotnet --info
+- ps: .\build.ps1 -Platform "AnyCPU" -Configuration "Release"
+
+test: off
+
+artifacts:
+- path: artifacts/zip/*.zip
+- path: artifacts/nuget/*.nupkg
