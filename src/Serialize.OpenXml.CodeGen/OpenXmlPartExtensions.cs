@@ -297,9 +297,11 @@ namespace Serialize.OpenXml.CodeGen
                     new CodePrimitiveExpression(part.OpenXmlPart.ContentType), 
                     new CodePrimitiveExpression(part.RelationshipId));
             }
+            /*
             else if (part.OpenXmlPart is EmbeddedPackagePart && rootVar.Value.GetMethod("AddEmbeddedPackagePart") != null)
             {
             }
+            */
             else
             {
                 // Setup the add new part statement for the current OpenXmlPart object
