@@ -39,12 +39,12 @@ namespace Serialize.OpenXml.CodeGen.Extentions
 
         /// <summary>
         /// Builds a new <see cref="CodeNamespaceImport"/> object based on the
-        /// namespace of <paramref name="t"/>.
+        /// namespace of <paramref name="ns"/>.
         /// </summary>
         /// <param name="ns">
         /// The <see cref="String"/> namespace name.
         /// </param>
-        /// <param name="options"/>
+        /// <param name="options">
         /// The <see name="NamespaceAliasOptions"/> object to generate the
         /// <see cref="CodeNamespaceImport"/> object with.
         /// </param>
@@ -63,12 +63,14 @@ namespace Serialize.OpenXml.CodeGen.Extentions
 
         /// <summary>
         /// Strips out the standard header text that is included when a
-        /// <see cref="System.CodeDom.Provider.CodeDomProvider"/> derived class
+        /// <see href="https://docs.microsoft.com/en-us/dotnet/api/system.codedom.compiler.codedomprovider"/> 
+        /// derived class
         /// generates dotnet code.
         /// </summary>
         /// <param name="raw">
         /// The raw code <see cref="string"/> produced by the 
-        /// <see cref="System.CodeDom.Provider.CodeDomProvider"/> derived class.
+        /// <see href="https://docs.microsoft.com/en-us/dotnet/api/system.codedom.compiler.codedomprovider"/> 
+        /// derived class.
         /// </param>
         /// <returns>
         /// A new code <see cref="string"/> value with the default headers removed.

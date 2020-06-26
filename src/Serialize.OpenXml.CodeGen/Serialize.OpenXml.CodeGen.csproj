@@ -13,6 +13,7 @@
     <PackageTags>openxml;codedom;DocumentFormat</PackageTags>
     <Description>.NET assembly class responsible for converting OpenXml based documents into corrisponding dotnet code</Description>
     <PackageOutputPath>../../artifacts/nuget</PackageOutputPath>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>

@@ -88,6 +88,7 @@ namespace Serialize.OpenXml.CodeGen
             CodeFieldReferenceExpression docTypeVarRef = null;
             Type docTypeEnum = null;
             string docTypeEnumVal = null;
+            KeyValuePair<string, Type> rootVarType;
             
             // Add all initial namespace names first
             namespaces.Add("System.IO");
@@ -229,6 +230,7 @@ namespace Serialize.OpenXml.CodeGen
                             varName = "mainDocumentPart";
                             initMethodName = "AddMainDocumentPart";
                         }
+                        rootVarType = new KeyValuePair<string, Type>(varName, currentPartType);
 
                         // Setup the blueprint
                         bpTemp = new OpenXmlPartBluePrint(pair.OpenXmlPart, varName);
@@ -259,14 +261,15 @@ namespace Serialize.OpenXml.CodeGen
                         {
                             createParts.Statements.AddRange(
                                 OpenXmlPartExtensions.BuildEntryMethodCodeStatements(
-                                    child, opts, partTypeCounts, namespaces, bluePrints, varName));
+                                    child, opts, partTypeCounts, namespaces, bluePrints, rootVarType));
                         }
                         continue;
                     }
 
+                    rootVarType = new KeyValuePair<string, Type>(pkgVarName, pkgType);
                     createParts.Statements.AddRange(
                         OpenXmlPartExtensions.BuildEntryMethodCodeStatements(
-                            pair, opts, partTypeCounts, namespaces, bluePrints, pkgVarName));
+                            pair, opts, partTypeCounts, namespaces, bluePrints, rootVarType));
                 }
             }
 

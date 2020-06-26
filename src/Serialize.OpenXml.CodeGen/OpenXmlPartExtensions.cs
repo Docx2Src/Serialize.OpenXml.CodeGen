@@ -120,10 +120,11 @@ namespace Serialize.OpenXml.CodeGen
             // Add all of the child part references here
             if (part.Parts != null)
             {
+                var rootPartPair = new KeyValuePair<string, Type>(methodParamName, eType);
                 foreach (var pair in part.Parts)
                 {
                     entryMethod.Statements.AddRange(BuildEntryMethodCodeStatements(
-                        pair, opts, partTypeCounts, namespaces, bluePrints, methodParamName));
+                        pair, opts, partTypeCounts, namespaces, bluePrints, rootPartPair));
                 }
             }
 
@@ -232,9 +233,9 @@ namespace Serialize.OpenXml.CodeGen
         /// The collection of <see cref="OpenXmlPartBluePrint"/> objects that have already been
         /// visited.
         /// </param>
-        /// <param name="rootVarName">
-        /// The root variable name to use when building code statements to create new
-        /// <see cref="OpenXmlPart"/> objects.
+        /// <param name="rootVar">
+        /// The root variable name and <see cref="Type"/> to use when building code
+        /// statements to create new <see cref="OpenXmlPart"/> objects.
         /// </param>
         /// <returns>
         /// A collection of code statements and expressions that could be used to generate
@@ -246,13 +247,13 @@ namespace Serialize.OpenXml.CodeGen
             IDictionary<string, int> typeCounts,
             ISet<string> namespaces,
             OpenXmlPartBluePrintCollection blueprints,
-            string rootVarName)
+            KeyValuePair<string, Type> rootVar)
         {
             // Argument validation
             if (part is null) throw new ArgumentNullException(nameof(part));
             if (opts is null) throw new ArgumentNullException(nameof(opts));
             if (blueprints is null) throw new ArgumentNullException(nameof(blueprints));
-            if (String.IsNullOrWhiteSpace(rootVarName)) throw new ArgumentNullException(nameof(rootVarName));
+            if (String.IsNullOrWhiteSpace(rootVar.Key)) throw new ArgumentNullException(nameof(rootVar.Key));
 
             var result = new CodeStatementCollection();
             var partType = part.OpenXmlPart.GetType();
@@ -283,13 +284,32 @@ namespace Serialize.OpenXml.CodeGen
             // Setup the blueprint
             bpTemp = new OpenXmlPartBluePrint(part.OpenXmlPart, varName);
 
-            // Setup the add new part statement for the current OpenXmlPart object
-            referenceExpression = new CodeMethodReferenceExpression(
-                new CodeVariableReferenceExpression(rootVarName), "AddNewPart",
-                new CodeTypeReference(partTypeName));
+            // Need to evaluate the current OpenXmlPart type first to make sure the 
+            // correct "Add" statement is used as not all Parts can be initialized
+            // using the "AddNewPart"method
+            
+            // Check for image part methods
+            if (part.OpenXmlPart is ImagePart && rootVar.Value.GetMethod("AddImagePart") != null)
+            {
+                referenceExpression = new CodeMethodReferenceExpression(
+                    new CodeVariableReferenceExpression(rootVar.Key), "AddImagePart");
+                invokeExpression = new CodeMethodInvokeExpression(referenceExpression,
+                    new CodePrimitiveExpression(part.OpenXmlPart.ContentType), 
+                    new CodePrimitiveExpression(part.RelationshipId));
+            }
+            else if (part.OpenXmlPart is EmbeddedPackagePart && rootVar.Value.GetMethod("AddEmbeddedPackagePart") != null)
+            {
+            }
+            else
+            {
+                // Setup the add new part statement for the current OpenXmlPart object
+                referenceExpression = new CodeMethodReferenceExpression(
+                    new CodeVariableReferenceExpression(rootVar.Key), "AddNewPart",
+                    new CodeTypeReference(partTypeName));
 
-            invokeExpression = new CodeMethodInvokeExpression(referenceExpression,
-                new CodePrimitiveExpression(part.RelationshipId));
+                invokeExpression = new CodeMethodInvokeExpression(referenceExpression,
+                    new CodePrimitiveExpression(part.RelationshipId));
+            }
 
             result.Add(new CodeVariableDeclarationStatement(partTypeName, varName, invokeExpression));
 
@@ -350,7 +370,8 @@ namespace Serialize.OpenXml.CodeGen
                     }
 
                     // If this is a new part, call this method with the current part's details
-                    result.AddRange(BuildEntryMethodCodeStatements(p, opts, typeCounts, namespaces, blueprints, varName));
+                    result.AddRange(BuildEntryMethodCodeStatements(p, opts, typeCounts, namespaces, blueprints, 
+                        new KeyValuePair<string, Type>(varName, partType)));
                 }
             }
             
@@ -361,7 +382,7 @@ namespace Serialize.OpenXml.CodeGen
         /// Creates the appropriate helper methods for all of the <see cref="OpenXmlPart"/> objects 
         /// for the current request.
         /// </summary>
-        /// <param name="blueprints">
+        /// <param name="bluePrints">
         /// The collection of <see cref="OpenXmlPartBluePrint"/> objects that have already been
         /// visited.
         /// </param>
@@ -370,12 +391,12 @@ namespace Serialize.OpenXml.CodeGen
         /// process.
         /// </param>
         /// <param name="namespaces">
-        /// Collection <see cref="ISet{T}"/> used to keep track of all openxml namespaces
+        /// <see cref="ISet{T}"/> collection used to keep track of all openxml namespaces
         /// used during the process.
         /// </param>
         /// <returns>
-        /// A collection of code statements and expressions that could be used to generate
-        /// a new <paramref name="part"/> object from code.
+        /// A collection of code helper statements and expressions that could be used to generate a new 
+        /// <see cref="OpenXmlPart"/> object from code.
         /// </returns>
         internal static CodeTypeMemberCollection BuildHelperMethods(
             OpenXmlPartBluePrintCollection bluePrints,
