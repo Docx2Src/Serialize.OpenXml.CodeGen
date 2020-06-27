@@ -115,7 +115,9 @@ namespace Serialize.OpenXml.CodeGen
                 ReturnType = new CodeTypeReference(),
                 Attributes = MemberAttributes.Public | MemberAttributes.Final
             };
-            entryMethod.Parameters.Add(new CodeParameterDeclarationExpression(partTypeName, methodParamName));
+            entryMethod.Parameters.Add(
+                new CodeParameterDeclarationExpression(partTypeName, methodParamName)
+                { Direction = FieldDirection.Ref });
 
             // Add all of the child part references here
             if (part.Parts != null)
@@ -129,7 +131,7 @@ namespace Serialize.OpenXml.CodeGen
             }
 
             entryMethod.Statements.Add(new CodeMethodInvokeExpression(methodRef, 
-                new CodeVariableReferenceExpression(methodParamName)));
+                new CodeArgumentReferenceExpression(methodParamName)));
 
             // Setup the main class next
             var mainClass = new CodeTypeDeclaration($"{eType.Name}BuilderClass")
@@ -321,7 +323,8 @@ namespace Serialize.OpenXml.CodeGen
             // Add the call to the method to populate the current OpenXmlPart object
             methodReference = new CodeMethodReferenceExpression(new CodeThisReferenceExpression(), bpTemp.MethodName);
             result.Add(new CodeMethodInvokeExpression(methodReference,
-                new CodeVariableReferenceExpression(varName)));
+                new CodeDirectionExpression(FieldDirection.Ref, 
+                    new CodeVariableReferenceExpression(varName))));
 
             // Add the appropriate code statements if the current part
             // contains any hyperlink relationships
@@ -426,7 +429,9 @@ namespace Serialize.OpenXml.CodeGen
                     Attributes = MemberAttributes.Private | MemberAttributes.Final,
                     ReturnType = new CodeTypeReference()
                 };
-                method.Parameters.Add(new CodeParameterDeclarationExpression(bp.Part.GetType().Name, methodParamName));
+                method.Parameters.Add(
+                    new CodeParameterDeclarationExpression(bp.Part.GetType().Name, methodParamName)
+                    { Direction = FieldDirection.Ref });
 
                 // Code part elements next
                 if (bp.Part.RootElement is null)
@@ -456,7 +461,7 @@ namespace Serialize.OpenXml.CodeGen
                     var invokeFromBase64 = new CodeMethodInvokeExpression(fromBase64, new CodeVariableReferenceExpression("base64"));
                     var createStream = new CodeObjectCreateExpression(new CodeTypeReference("MemoryStream"),
                         invokeFromBase64, new CodePrimitiveExpression(false));
-                    var feedData = new CodeMethodReferenceExpression(new CodeVariableReferenceExpression(methodParamName), "FeedData");
+                    var feedData = new CodeMethodReferenceExpression(new CodeArgumentReferenceExpression(methodParamName), "FeedData");
                     var invokeFeedData = new CodeMethodInvokeExpression(feedData, new CodeVariableReferenceExpression(memName));
                     var disposeMem = new CodeMethodReferenceExpression(new CodeVariableReferenceExpression(memName), "Dispose");
                     var invokeDisposeMem = new CodeMethodInvokeExpression(disposeMem);
@@ -488,7 +493,7 @@ namespace Serialize.OpenXml.CodeGen
                             if (paramProp.PropertyType == rootElementType)
                             {
                                 var varRef = new CodeVariableReferenceExpression(rootElementVar);
-                                var paramRef = new CodeVariableReferenceExpression(methodParamName);
+                                var paramRef = new CodeArgumentReferenceExpression(methodParamName);
                                 var propRef = new CodePropertyReferenceExpression(paramRef, paramProp.Name);
                                 method.Statements.Add(new CodeAssignStatement(propRef, varRef));
                                 break;

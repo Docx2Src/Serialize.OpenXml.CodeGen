@@ -122,7 +122,9 @@ namespace Serialize.OpenXml.CodeGen
                 ReturnType = new CodeTypeReference(),
                 Attributes = MemberAttributes.Public | MemberAttributes.Final
             };
-            entryPoint.Parameters.Add(new CodeParameterDeclarationExpression(typeof(Stream).Name, paramName));
+            entryPoint.Parameters.Add(
+                new CodeParameterDeclarationExpression(typeof(Stream).Name, paramName) 
+                { Direction = FieldDirection.Ref });
             
             // Create package declaration expression first
             entryPoint.Statements.Add(new CodeVariableDeclarationStatement(pkgTypeName, pkgVarName, 
@@ -142,7 +144,7 @@ namespace Serialize.OpenXml.CodeGen
                 new CodeTypeReferenceExpression(pkgTypeName), 
                 "Create");
             var pkgCreateInvoke = new CodeMethodInvokeExpression(pkgCreateMethod, 
-                new CodeVariableReferenceExpression(paramName),
+                new CodeArgumentReferenceExpression(paramName),
                 docTypeVarRef);
             var initializePkg = new CodeAssignStatement(
                 new CodeVariableReferenceExpression(pkgVarName),
@@ -154,7 +156,8 @@ namespace Serialize.OpenXml.CodeGen
                 "CreateParts");
             var partsCreateInvoke = new CodeMethodInvokeExpression(
                 partsCreateMethod,
-                new CodeVariableReferenceExpression(pkgVarName));
+                new CodeDirectionExpression(FieldDirection.Ref,
+                    new CodeVariableReferenceExpression(pkgVarName)));
 
             // Clean up pkg var
             var pkgDisposeMethod = new CodeMethodReferenceExpression(
@@ -191,7 +194,8 @@ namespace Serialize.OpenXml.CodeGen
                 ReturnType = new CodeTypeReference(),
                 Attributes = MemberAttributes.Private | MemberAttributes.Final
             };
-            createParts.Parameters.Add(new CodeParameterDeclarationExpression(pkgTypeName, pkgVarName));
+            createParts.Parameters.Add(new CodeParameterDeclarationExpression(pkgTypeName, pkgVarName) 
+                { Direction = FieldDirection.Ref });
 
             // Add all of the child part references here
             if (pkg.Parts != null)
@@ -237,7 +241,7 @@ namespace Serialize.OpenXml.CodeGen
 
                         // Setup the add new part statement for the current OpenXmlPart object
                         referenceExpression = new CodeMethodReferenceExpression(
-                            new CodeVariableReferenceExpression(pkgVarName), initMethodName);
+                            new CodeArgumentReferenceExpression(pkgVarName), initMethodName);
 
                         invokeExpression = new CodeMethodInvokeExpression(referenceExpression);
 
@@ -246,7 +250,7 @@ namespace Serialize.OpenXml.CodeGen
                         // Add the call to the method to populate the current OpenXmlPart object
                         methodReference = new CodeMethodReferenceExpression(new CodeThisReferenceExpression(), bpTemp.MethodName);
                         createParts.Statements.Add(new CodeMethodInvokeExpression(methodReference,
-                            new CodeVariableReferenceExpression(varName)));
+                            new CodeDirectionExpression(FieldDirection.Ref, new CodeVariableReferenceExpression(varName))));
 
                         // Add the current main part to the collection of blueprints to ensure that the appropriate 'Generate*'
                         // method is added to the collection of helper methods.
