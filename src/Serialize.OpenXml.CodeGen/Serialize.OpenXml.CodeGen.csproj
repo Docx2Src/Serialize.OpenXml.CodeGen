@@ -1,14 +1,17 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <ChangeLogFile>CHANGELOG.md</ChangeLogFile>
+  </PropertyGroup>
+  <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Version>0.1.0-alpha</Version>
+    <Version>0.2.0-alpha</Version>
     <Authors>Ryan Boggs</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/rmboggs/Serialize.OpenXml.CodeGen</PackageProjectUrl>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <RepositoryUrl>https://github.com/rmboggs/Serialize.OpenXml.CodeGen</RepositoryUrl>
-    <PackageReleaseNotes>Initial alpha release</PackageReleaseNotes>
+    <PackageReleaseNotes>$([System.IO.File]::ReadAllText($(ChangeLogFile)))</PackageReleaseNotes>
     <RepositoryType>git</RepositoryType>
     <PackageTags>openxml;codedom;DocumentFormat</PackageTags>
     <Description>.NET assembly class responsible for converting OpenXml based documents into corrisponding dotnet code</Description>

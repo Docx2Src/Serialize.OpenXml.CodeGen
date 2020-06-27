@@ -264,6 +264,8 @@ namespace Serialize.OpenXml.CodeGen
             CodeMethodReferenceExpression referenceExpression = null;
             CodeMethodInvokeExpression invokeExpression = null;
             CodeMethodReferenceExpression methodReference = null;
+            bool useAddImgPart = part.OpenXmlPart is ImagePart && 
+                rootVar.Value.GetMethod("AddImagePart") != null;
             
             // Add blank code line
             void addBlankLine() => result.Add(new CodeSnippetStatement(String.Empty));
@@ -289,29 +291,30 @@ namespace Serialize.OpenXml.CodeGen
             // using the "AddNewPart"method
             
             // Check for image part methods
-            if (part.OpenXmlPart is ImagePart && rootVar.Value.GetMethod("AddImagePart") != null)
+            if (useAddImgPart)
             {
                 referenceExpression = new CodeMethodReferenceExpression(
                     new CodeVariableReferenceExpression(rootVar.Key), "AddImagePart");
-                invokeExpression = new CodeMethodInvokeExpression(referenceExpression,
-                    new CodePrimitiveExpression(part.OpenXmlPart.ContentType), 
-                    new CodePrimitiveExpression(part.RelationshipId));
             }
-            /*
-            else if (part.OpenXmlPart is EmbeddedPackagePart && rootVar.Value.GetMethod("AddEmbeddedPackagePart") != null)
-            {
-            }
-            */
             else
             {
                 // Setup the add new part statement for the current OpenXmlPart object
                 referenceExpression = new CodeMethodReferenceExpression(
                     new CodeVariableReferenceExpression(rootVar.Key), "AddNewPart",
                     new CodeTypeReference(partTypeName));
-
-                invokeExpression = new CodeMethodInvokeExpression(referenceExpression,
-                    new CodePrimitiveExpression(part.RelationshipId));
             }
+
+            // Create the invoke expression 
+            invokeExpression = new CodeMethodInvokeExpression(referenceExpression);
+            
+            // Add content type to invoke method for embeddedpackage and image parts.
+            if (part.OpenXmlPart is EmbeddedPackagePart || useAddImgPart)
+            {
+                invokeExpression.Parameters.Add(
+                    new CodePrimitiveExpression(part.OpenXmlPart.ContentType));
+            }
+            invokeExpression.Parameters.Add(
+                new CodePrimitiveExpression(part.RelationshipId));
 
             result.Add(new CodeVariableDeclarationStatement(partTypeName, varName, invokeExpression));
 
