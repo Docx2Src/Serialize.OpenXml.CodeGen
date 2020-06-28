@@ -3,9 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.26124.0
 MinimumVisualStudioVersion = 15.0.26124.0
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{E022809E-9507-4991-B227-20B153AB531A}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Serialize.OpenXml.CodeGen", "src\Serialize.OpenXml.CodeGen\Serialize.OpenXml.CodeGen.csproj", "{1A80CC41-59B0-48DF-8E32-0E276841F769}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serialize.OpenXml.CodeGen", "src\Serialize.OpenXml.CodeGen\Serialize.OpenXml.CodeGen.csproj", "{1A80CC41-59B0-48DF-8E32-0E276841F769}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,9 +13,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 		Release|x64 = Release|x64
 		Release|x86 = Release|x86
-	EndGlobalSection
-	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{1A80CC41-59B0-48DF-8E32-0E276841F769}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
@@ -33,7 +28,10 @@ Global
 		{1A80CC41-59B0-48DF-8E32-0E276841F769}.Release|x86.ActiveCfg = Release|Any CPU
 		{1A80CC41-59B0-48DF-8E32-0E276841F769}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
-	GlobalSection(NestedProjects) = preSolution
-		{1A80CC41-59B0-48DF-8E32-0E276841F769} = {E022809E-9507-4991-B227-20B153AB531A}
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {9AB1B35F-7F1E-42E8-81B4-DBCE1CEBF92F}
 	EndGlobalSection
 EndGlobal
