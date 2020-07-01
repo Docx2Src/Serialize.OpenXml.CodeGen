@@ -10,5 +10,5 @@ indent_style = space
 [*.ps1]
 indent_size = 2
 
-[*.{cs,cake,csproj}]
+[*.{cs,cake,csproj,sh}]
 indent_size = 4
