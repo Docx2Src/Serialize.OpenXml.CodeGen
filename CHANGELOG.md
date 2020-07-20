@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [0.3.0-alpha] - 2020-07-20
+
+### Changed
+
+- Update DocumentFormat.OpenXml reference to 2.11.3.
+
+### Fixed
+
+- Ambiguous Match Exception occuring when trying to identify parts that need to use the
+  `AddImagePart` initialization method.
+
 ## [0.2.1-alpha] - 2020-07-03
 
 ### Changed

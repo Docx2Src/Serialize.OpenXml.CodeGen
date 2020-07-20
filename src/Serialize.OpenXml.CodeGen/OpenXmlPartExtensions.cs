@@ -266,8 +266,9 @@ namespace Serialize.OpenXml.CodeGen
             CodeMethodReferenceExpression referenceExpression = null;
             CodeMethodInvokeExpression invokeExpression = null;
             CodeMethodReferenceExpression methodReference = null;
-            bool useAddImgPart = part.OpenXmlPart is ImagePart && 
-                rootVar.Value.GetMethod("AddImagePart") != null;
+            bool useAddImgPart = part.OpenXmlPart is ImagePart &&
+                rootVar.Value.GetMethods().Count(
+                    m => m.Name.Equals("AddImagePart", StringComparison.OrdinalIgnoreCase)) > 0;
             
             // Add blank code line
             void addBlankLine() => result.Add(new CodeSnippetStatement(String.Empty));
