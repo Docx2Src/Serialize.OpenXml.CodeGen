@@ -5,7 +5,7 @@
   </PropertyGroup>
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Version>0.3.0-alpha</Version>
+    <Version>0.3.1-alpha</Version>
     <Authors>Ryan Boggs</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/rmboggs/Serialize.OpenXml.CodeGen</PackageProjectUrl>
