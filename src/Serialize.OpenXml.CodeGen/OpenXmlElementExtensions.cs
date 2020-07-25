@@ -220,6 +220,9 @@ namespace Serialize.OpenXml.CodeGen
             CodeTypeReferenceCollection typeReferenceCollection;
             CodeTypeReference typeReference;
 
+            // Used for dealing with thrown FormatExceptions
+            Func<FormatException, string, CodeStatement> handleFmtException;
+
             // Dictionary used to map complex objects to element properties
             var simpleTypePropReferences = new Dictionary<string, string>();
 
@@ -444,12 +447,39 @@ namespace Serialize.OpenXml.CodeGen
                 // Add the simple property type namespace to the set
                 namespaces.Add(pi.PropertyType.Namespace);
 
-                statement = new CodeAssignStatement(
-                    new CodePropertyReferenceExpression(
-                        new CodeVariableReferenceExpression(elementName), cp.Name),
-                        new CodeFieldReferenceExpression(
-                            new CodeVariableReferenceExpression(simpleName),
-                            pi.GetValue(val).ToString()));
+                handleFmtException = (fex, eName) =>
+                    new CodeCommentStatement(
+                        new CodeComment($"Could not parse value of '{cp.Name}' ({simpleName}) property for variable `{eName}`: {fex.Message}"));
+
+                try
+                {
+
+                    statement = new CodeAssignStatement(
+                                new CodePropertyReferenceExpression(
+                                    new CodeVariableReferenceExpression(elementName), cp.Name),
+                                    new CodeFieldReferenceExpression(
+                                        new CodeVariableReferenceExpression(simpleName),
+                                        pi.GetValue(val).ToString()));
+
+                }
+                catch (TargetInvocationException tie)
+                    when (tie.InnerException != null && tie.InnerException is FormatException)
+                {
+                    var fex = tie.InnerException as FormatException;
+
+                    // This is used if the value retrieved from an element property
+                    // doesn't match any of the enum values of the expected property
+                    // type
+                    statement = handleFmtException(fex, elementName);
+                }
+                catch (FormatException fex)
+                {
+                    statement = handleFmtException(fex, elementName);
+                }
+                catch
+                {
+                    throw;
+                }
                 result.Add(statement);
             }
             // Insert an empty line, if possible
