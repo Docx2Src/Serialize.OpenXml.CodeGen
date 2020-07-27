@@ -78,7 +78,6 @@ namespace Serialize.OpenXml.CodeGen
             var typeCounts = new Dictionary<Type, int>();
             var namespaces = new SortedSet<string>();
             var mainNamespace = new CodeNamespace("OpenXmlSample");
-            string tmpName = null;
 
             // Setup the main method
             var mainMethod = new CodeMemberMethod()
@@ -87,7 +86,7 @@ namespace Serialize.OpenXml.CodeGen
                 ReturnType = new CodeTypeReference(eType.Name),
                 Attributes = MemberAttributes.Public | MemberAttributes.Final
             };
-            mainMethod.Statements.AddRange(BuildCodeStatements(element, opts, typeCounts, namespaces, out tmpName));
+            mainMethod.Statements.AddRange(BuildCodeStatements(element, opts, typeCounts, namespaces, out string tmpName));
             mainMethod.Statements.Add(new CodeMethodReturnStatement(new CodeVariableReferenceExpression(tmpName)));
 
             // Setup the main class next
@@ -388,17 +387,9 @@ namespace Serialize.OpenXml.CodeGen
                 {
                     addBlankLine();
                 }
-                else if (sProperties.Count > 0)
+                else if (sProperties.Count > 0 && sProperties.Count(sp => sp.GetValue(e) != null) > 0)
                 {
-                    foreach (var p in sProperties)
-                    {
-                        val = p.GetValue(e);
-                        if (val != null)
-                        {
-                            addBlankLine();
-                            break;
-                        }
-                    }
+                    addBlankLine();
                 }
             }
 
@@ -449,18 +440,21 @@ namespace Serialize.OpenXml.CodeGen
 
                 handleFmtException = (fex, eName) =>
                     new CodeCommentStatement(
-                        new CodeComment($"Could not parse value of '{cp.Name}' ({simpleName}) property for variable `{eName}`: {fex.Message}"));
+                        new CodeComment($"Could not parse value of '{cp.Name}' property for variable" +
+                        $"`{eName}` - {simpleName} enum does not contain '{val}': {fex.Message}"));
 
+                // This code may run into issues if, for some unfortunate reason, the xml schema used to help
+                // create the current OpenXml SDK library is not set correctly.  If that happens, the
+                // catch statements will print out the current line of code as a comment as a stop gap until
+                // the issue is reported and fix.
                 try
                 {
-
                     statement = new CodeAssignStatement(
                                 new CodePropertyReferenceExpression(
                                     new CodeVariableReferenceExpression(elementName), cp.Name),
                                     new CodeFieldReferenceExpression(
                                         new CodeVariableReferenceExpression(simpleName),
                                         pi.GetValue(val).ToString()));
-
                 }
                 catch (TargetInvocationException tie)
                     when (tie.InnerException != null && tie.InnerException is FormatException)
