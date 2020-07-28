@@ -32,8 +32,17 @@ namespace Serialize.OpenXml.CodeGen
     /// </summary>
     public sealed class UriEqualityComparer : EqualityComparer<Uri>
     {
+        #region Public Static Fields
+
+        /// <summary>
+        /// A default <see cref="UriEqualityComparer"/> to use when comparing 2 <see cref="Uri"/> objects.
+        /// </summary>
+        public static readonly UriEqualityComparer DefaultComparer = new UriEqualityComparer();
+
+        #endregion
+
         #region Public Instance Methods 
-        
+
         /// <inheritdoc/>
         public override bool Equals(Uri x, Uri y)
         {

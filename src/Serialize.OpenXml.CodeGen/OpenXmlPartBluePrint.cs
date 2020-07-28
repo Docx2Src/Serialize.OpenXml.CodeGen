@@ -30,7 +30,7 @@ namespace Serialize.OpenXml.CodeGen
     /// Simple organization class used to keep track of all the OpenXmlPart details needed
     /// to complete a code generation request.
     /// </summary>
-    internal sealed class OpenXmlPartBluePrint
+    internal sealed class OpenXmlPartBluePrint : IEquatable<OpenXmlPartBluePrint>
     {
         #region Public Constructrs
 
@@ -80,6 +80,33 @@ namespace Serialize.OpenXml.CodeGen
         /// Gets the variable name that <see cref="Part"/> was initialized with.
         /// </summary>
         public string VariableName { get; private set; }
+
+        #endregion
+
+        #region Public Instance Methods
+
+        /// <inheritdoc/>
+        public override bool Equals(object obj)
+        {
+            if (obj == null) return false;
+            if (!(obj is OpenXmlPartBluePrint)) return false;
+            if (Object.ReferenceEquals((object)this, obj)) return true;
+            return Equals(obj as OpenXmlPartBluePrint);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(OpenXmlPartBluePrint other)
+        {
+            if (other == null) return false;
+            return UriEqualityComparer.DefaultComparer.Equals(Uri, other.Uri);
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            if (Uri == null) return 0;
+            return Uri.GetHashCode();
+        }
 
         #endregion
 

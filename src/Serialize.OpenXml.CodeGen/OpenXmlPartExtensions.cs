@@ -287,7 +287,24 @@ namespace Serialize.OpenXml.CodeGen
             }
 
             // Setup the blueprint
-            bpTemp = new OpenXmlPartBluePrint(part.OpenXmlPart, varName);
+            if (blueprints.TryGetValue(part.OpenXmlPart.Uri, out bpTemp))
+            {
+                // If the URI of the current part has already been included into
+                // the blue prints collection, build the AddPart invocation
+                // code statement and exit current method iteration.
+                referenceExpression = new CodeMethodReferenceExpression(
+                    new CodeVariableReferenceExpression(varName), "AddPart",
+                    new CodeTypeReference(part.OpenXmlPart.GetType().Name));
+                invokeExpression = new CodeMethodInvokeExpression(referenceExpression,
+                    new CodeVariableReferenceExpression(bpTemp.VariableName),
+                    new CodePrimitiveExpression(part.RelationshipId));
+                result.Add(invokeExpression);
+                return result;
+            }
+            else
+            {
+                bpTemp = new OpenXmlPartBluePrint(part.OpenXmlPart, varName);
+            }
 
             // Need to evaluate the current OpenXmlPart type first to make sure the 
             // correct "Add" statement is used as not all Parts can be initialized

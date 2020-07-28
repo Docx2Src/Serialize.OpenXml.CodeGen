@@ -41,6 +41,38 @@ namespace Serialize.OpenXml.CodeGen
 
         #endregion
 
+        #region Public Instance Methods
+
+        /// <summary>
+        /// Gets the <see cref="OpenXmlPartBluePrint"/> object associated with the specified
+        /// <see cref="Uri"/>.
+        /// </summary>
+        /// <param name="uri">
+        /// The <see cref="Uri"/> of the <see cref="OpenXmlPartBluePrint"/> object to get.
+        /// </param>
+        /// <param name="bp">
+        /// When the method returns, contains the <see cref="OpenXmlPartBluePrint"/> object
+        /// associated with <paramref name="uri"/>, if found; otherwise, the default value
+        /// of <see cref="OpenXmlPartBluePrint"/> is returned (<see langword="null"/>).
+        /// This parameter is passed uninitialized.
+        /// </param>
+        /// <returns>
+        /// <see langword="true"/> if collection contains an <see cref="OpenXmlPartBluePrint"/>
+        /// object with the specified <paramref name="uri"/>; otherwise, <see langword="false"/>.
+        /// </returns>
+        public bool TryGetValue(Uri uri, out OpenXmlPartBluePrint bp)
+        {
+            if (uri == null || !Contains(uri))
+            {
+                bp = null;
+                return false;
+            }
+            bp = this[uri];
+            return true;
+        }
+
+        #endregion
+
         #region Protected Instance Methods
 
         /// <inheritdoc/>
