@@ -220,7 +220,7 @@ namespace Serialize.OpenXml.CodeGen
             CodeTypeReference typeReference;
 
             // Used for dealing with thrown FormatExceptions
-            Func<FormatException, string, CodeStatement> handleFmtException;
+            Func<string, CodeStatement> handleFmtException;
 
             // Dictionary used to map complex objects to element properties
             var simpleTypePropReferences = new Dictionary<string, string>();
@@ -231,6 +231,7 @@ namespace Serialize.OpenXml.CodeGen
             object val = null;
             object propVal = null;
             PropertyInfo pi = null;
+            OpenXmlSimpleType tmpSimpleType;
 
             // Start pulling out the properties of the current element.
             var sProperties = elementType.GetOpenXmlSimpleValuesProperties();
@@ -402,12 +403,22 @@ namespace Serialize.OpenXml.CodeGen
                 // Add the simple property type namespace to the set
                 namespaces.Add(p.PropertyType.Namespace);
 
-                propVal = val.GetType().GetProperty("Value").GetValue(val);
+                tmpSimpleType = val as OpenXmlSimpleType;
 
-                statement = new CodeAssignStatement(
-                    new CodePropertyReferenceExpression(
-                        new CodeVariableReferenceExpression(elementName), p.Name),
-                        new CodePrimitiveExpression(propVal));
+                if (!tmpSimpleType.HasValue)
+                {
+                    statement = new CodeCommentStatement(
+                        $"'{val}' is not a valid value for the {p.Name} property");
+                }
+                else
+                {
+                    propVal = val.GetType().GetProperty("Value").GetValue(val);
+
+                    statement = new CodeAssignStatement(
+                        new CodePropertyReferenceExpression(
+                            new CodeVariableReferenceExpression(elementName), p.Name),
+                            new CodePrimitiveExpression(propVal));
+                }
                 result.Add(statement);
             }
 
@@ -438,10 +449,10 @@ namespace Serialize.OpenXml.CodeGen
                 // Add the simple property type namespace to the set
                 namespaces.Add(pi.PropertyType.Namespace);
 
-                handleFmtException = (fex, eName) =>
+                handleFmtException = (eName) =>
                     new CodeCommentStatement(
-                        new CodeComment($"Could not parse value of '{cp.Name}' property for variable" +
-                        $"`{eName}` - {simpleName} enum does not contain '{val}': {fex.Message}"));
+                        $"Could not parse value of '{cp.Name}' property for variable " +
+                        $"`{eName}` - {simpleName} enum does not contain '{val}' field");
 
                 // This code may run into issues if, for some unfortunate reason, the xml schema used to help
                 // create the current OpenXml SDK library is not set correctly.  If that happens, the
@@ -459,16 +470,14 @@ namespace Serialize.OpenXml.CodeGen
                 catch (TargetInvocationException tie)
                     when (tie.InnerException != null && tie.InnerException is FormatException)
                 {
-                    var fex = tie.InnerException as FormatException;
-
                     // This is used if the value retrieved from an element property
                     // doesn't match any of the enum values of the expected property
                     // type
-                    statement = handleFmtException(fex, elementName);
+                    statement = handleFmtException(elementName);
                 }
-                catch (FormatException fex)
+                catch (FormatException)
                 {
-                    statement = handleFmtException(fex, elementName);
+                    statement = handleFmtException(elementName);
                 }
                 catch
                 {
