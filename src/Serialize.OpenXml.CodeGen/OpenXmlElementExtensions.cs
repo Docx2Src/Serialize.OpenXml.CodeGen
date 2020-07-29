@@ -350,19 +350,26 @@ namespace Serialize.OpenXml.CodeGen
             // Include the alias prefix if the current element belongs to a class
             // within the namespaces identified to needing an alias
             junk = elementType.GetObjectTypeName(opts.Order);
+            createExpression = new CodeObjectCreateExpression(junk);
 
+            // OpenXmlUknownElement objects require the calling of custom constructors
+            if (e is OpenXmlUnknownElement)
+            {
+                createExpression.Parameters.AddRange(new CodeExpression[]
+                {
+                    new CodePrimitiveExpression(e.Prefix),
+                    new CodePrimitiveExpression(e.LocalName),
+                    new CodePrimitiveExpression(e.NamespaceUri)
+                });   
+            }
             // OpenXmlLeafTextElement classes have constructors that take in
             // one StringValue object as a parameter to populate the new
             // object's Text property.  This takes advantange of that knowledge.
-            if (elementType.IsSubclassOf(typeof(OpenXmlLeafTextElement)))
+            else if (elementType.IsSubclassOf(typeof(OpenXmlLeafTextElement)))
             {
                 var leafText = elementType.GetProperty("Text").GetValue(e);
                 var param = new CodePrimitiveExpression(leafText);
-                createExpression = new CodeObjectCreateExpression(junk, param);
-            }
-            else
-            {
-                createExpression = new CodeObjectCreateExpression(junk);
+                createExpression.Parameters.Add(param);
             }
             statement = new CodeVariableDeclarationStatement(junk, elementName, createExpression);
             result.Add(statement);

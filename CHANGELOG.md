@@ -7,11 +7,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [0.3.2-alpha] - TBD
 
+### Changed
+
+- Updated process to account for more OpenXmlPart classes that may require custom AddNewPart methods
+  to initialize.
+
 ### Fixed
 
 - TargetInvocationException/FormatException when trying to parse a value that is not valid for
   `OpenXmlSimpleType` derived types being evaluated. [See this](https://github.com/OfficeDev/Open-XML-SDK/issues/780)
   for more details.
+- When encountering OpenXmlUnknownElement objects, make sure to initialize them with the appropriate
+- `ctor` method.
 
 ## [0.3.1-alpha] - 2020-07-25
 
