@@ -21,7 +21,6 @@ DEALINGS IN THE SOFTWARE.
 */
 
 using DocumentFormat.OpenXml.Packaging;
-using DocumentFormat.OpenXml.Vml.Office;
 using Serialize.OpenXml.CodeGen.Extentions;
 using System;
 using System.CodeDom;
@@ -87,8 +86,8 @@ namespace Serialize.OpenXml.CodeGen
             CodeTypeDeclaration mainClass;
             CodeTryCatchFinallyStatement tryAndCatch;
             CodeFieldReferenceExpression docTypeVarRef = null;
-            Type docTypeEnum = null;
-            string docTypeEnumVal = null;
+            Type docTypeEnum;
+            string docTypeEnumVal;
             KeyValuePair<string, Type> rootVarType;
             
             // Add all initial namespace names first
@@ -96,24 +95,23 @@ namespace Serialize.OpenXml.CodeGen
 
             // The OpenXmlDocument derived parts all contain a property called "DocumentType"
             // but the property types differ depending on the derived part.  Need to get both
-            // the enum name of selected value to use as a parameter for the Create statement
-            if (pkg is PresentationDocument)
+            // the enum name of selected value to use as a parameter for the Create statement.
+            switch (pkg)
             {
-                var docType = ((PresentationDocument)pkg).DocumentType;
-                docTypeEnumVal = docType.ToString();
-                docTypeEnum = docType.GetType();
-            }
-            else if (pkg is SpreadsheetDocument)
-            {
-                var docType = ((SpreadsheetDocument)pkg).DocumentType;
-                docTypeEnumVal = docType.ToString();
-                docTypeEnum = docType.GetType();
-            }
-            else if (pkg is WordprocessingDocument)
-            {
-                var docType = ((WordprocessingDocument)pkg).DocumentType;
-                docTypeEnumVal = docType.ToString();
-                docTypeEnum = docType.GetType();
+                case PresentationDocument p:
+                    docTypeEnum = p.DocumentType.GetType();
+                    docTypeEnumVal = p.DocumentType.ToString();
+                    break;
+                case SpreadsheetDocument s:
+                    docTypeEnum = s.DocumentType.GetType();
+                    docTypeEnumVal = s.DocumentType.ToString();
+                    break;
+                case WordprocessingDocument w:
+                    docTypeEnum = w.DocumentType.GetType();
+                    docTypeEnumVal = w.DocumentType.ToString();
+                    break;
+                default:
+                    throw new ArgumentException("object is not a recognized OpenXmlPackage type.", nameof(pkg));
             }
 
             // Create the entry method
@@ -201,14 +199,14 @@ namespace Serialize.OpenXml.CodeGen
             if (pkg.Parts != null)
             {
                 var customNewPartTypes = new Type[] { typeof(PresentationPart), typeof(WorkbookPart), typeof(MainDocumentPart) };
-                OpenXmlPartBluePrint bpTemp = null;
-                CodeMethodReferenceExpression referenceExpression = null;
-                CodeMethodInvokeExpression invokeExpression = null;
-                CodeMethodReferenceExpression methodReference = null;
-                Type currentPartType = null;
+                OpenXmlPartBluePrint bpTemp;
+                CodeMethodReferenceExpression referenceExpression;
+                CodeMethodInvokeExpression invokeExpression;
+                CodeMethodReferenceExpression methodReference;
+                Type currentPartType;
                 string varName = null;
                 string initMethodName = null;
-                string mainPartTypeName = null;
+                string mainPartTypeName;
 
                 foreach (var pair in pkg.Parts)
                 {
