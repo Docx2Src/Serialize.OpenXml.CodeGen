@@ -597,8 +597,8 @@ namespace Serialize.OpenXml.CodeGen
                     new CodeVariableReferenceExpression(parentName),
                     "AddExternalRelationship");
                 invokeExpression = new CodeMethodInvokeExpression(methodReferenceExpression,
+                    new CodePrimitiveExpression(ex.RelationshipType),
                     createExpression,
-                    new CodePrimitiveExpression(ex.IsExternal),
                     new CodePrimitiveExpression(ex.Id));
                 result.Add(invokeExpression);
             }

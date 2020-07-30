@@ -7,6 +7,8 @@ The Open XML Document Code Generator is a dotnet standard library that contains 
 
 Please be aware that while this project is producing working code, I would consider this is in alpha status and not yet ready for production.  More testing should be done before it will be production ready.
 
+Looking for a front end interface for this project?  Check out [DocxToSource](https://github.com/rmboggs/DocxToSource). There is still much work to be done but it is becoming a nice replacement for the old OpenXml SDK Productivity Tool.
+
 ## Examples
 
 Generate the [CodeCompileUnit](https://docs.microsoft.com/en-us/dotnet/api/system.codedom.codecompileunit?view=netcore-3.1) to process manually:

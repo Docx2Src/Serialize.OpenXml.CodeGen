@@ -17,8 +17,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - TargetInvocationException/FormatException when trying to parse a value that is not valid for
   `OpenXmlSimpleType` derived types being evaluated. [See this](https://github.com/OfficeDev/Open-XML-SDK/issues/780)
   for more details.
-- When encountering OpenXmlUnknownElement objects, make sure to initialize them with the appropriate
-- `ctor` method.
+- When encountering OpenXmlUnknownElement objects, make sure to initialize them with the appropriate `ctor` method.
+- Correct the initialization parameters for the generated `AddExternalRelationship` method.
 
 ## [0.3.1-alpha] - 2020-07-25
 
