@@ -291,6 +291,25 @@ namespace Serialize.OpenXml.CodeGen
             // Make sure that the namespace for the current part is captured
             namespaces.Add(partType.Namespace);
 
+            // If the URI of the current part has already been included into
+            // the blue prints collection, build the AddPart invocation
+            // code statement and exit current method iteration.
+            if (blueprints.TryGetValue(part.OpenXmlPart.Uri, out bpTemp))
+            {
+                // Surround this snippet with blank lines to make it
+                // stand out in the current section of code.
+                addBlankLine();
+                referenceExpression = new CodeMethodReferenceExpression(
+                    new CodeVariableReferenceExpression(rootVar.Key), "AddPart",
+                    new CodeTypeReference(part.OpenXmlPart.GetType().Name));
+                invokeExpression = new CodeMethodInvokeExpression(referenceExpression,
+                    new CodeVariableReferenceExpression(bpTemp.VariableName),
+                    new CodePrimitiveExpression(part.RelationshipId));
+                result.Add(invokeExpression);
+                addBlankLine();
+                return result;
+            }
+
             // Assign the appropriate variable name
             if (typeCounts.ContainsKey(partTypeFullName))
             {
@@ -302,28 +321,11 @@ namespace Serialize.OpenXml.CodeGen
             }
 
             // Setup the blueprint
-            if (blueprints.TryGetValue(part.OpenXmlPart.Uri, out bpTemp))
-            {
-                // If the URI of the current part has already been included into
-                // the blue prints collection, build the AddPart invocation
-                // code statement and exit current method iteration.
-                referenceExpression = new CodeMethodReferenceExpression(
-                    new CodeVariableReferenceExpression(varName), "AddPart",
-                    new CodeTypeReference(part.OpenXmlPart.GetType().Name));
-                invokeExpression = new CodeMethodInvokeExpression(referenceExpression,
-                    new CodeVariableReferenceExpression(bpTemp.VariableName),
-                    new CodePrimitiveExpression(part.RelationshipId));
-                result.Add(invokeExpression);
-                return result;
-            }
-            else
-            {
-                bpTemp = new OpenXmlPartBluePrint(part.OpenXmlPart, varName);
-            }
+            bpTemp = new OpenXmlPartBluePrint(part.OpenXmlPart, varName);
 
-            // Need to evaluate the current OpenXmlPart type first to make sure the 
+            // Need to evaluate the current OpenXmlPart type first to make sure the  
             // correct "Add" statement is used as not all Parts can be initialized
-            // using the "AddNewPart"method
+            // using the "AddNewPart" method
 
             // Check for image part methods
             if (customAddNewPartRequired)

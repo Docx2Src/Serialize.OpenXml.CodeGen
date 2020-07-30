@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [0.3.2-alpha] - TBD
+## [0.3.2-alpha] - 2020-07-30
 
 ### Changed
 
@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   for more details.
 - When encountering OpenXmlUnknownElement objects, make sure to initialize them with the appropriate `ctor` method.
 - Correct the initialization parameters for the generated `AddExternalRelationship` method.
+- Issue where AddPart methods for OpenXmlPart paths that have already been visited are generated on variables
+  that do not exist.
 
 ## [0.3.1-alpha] - 2020-07-25
 
