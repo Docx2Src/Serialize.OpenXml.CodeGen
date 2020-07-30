@@ -21,6 +21,7 @@ DEALINGS IN THE SOFTWARE.
 */
 
 using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Vml.Office;
 using Serialize.OpenXml.CodeGen.Extentions;
 using System;
 using System.CodeDom;
@@ -72,7 +73,7 @@ namespace Serialize.OpenXml.CodeGen
         public static CodeCompileUnit GenerateSourceCode(this OpenXmlPackage pkg, NamespaceAliasOptions opts)
         {
             const string pkgVarName = "pkg";
-            const string paramName = "stream";
+            const string paramName = "pathToFile";
             var result = new CodeCompileUnit();
             var pkgType = pkg.GetType();
             var pkgTypeName = pkgType.Name;
@@ -91,7 +92,7 @@ namespace Serialize.OpenXml.CodeGen
             KeyValuePair<string, Type> rootVarType;
             
             // Add all initial namespace names first
-            namespaces.Add("System.IO");
+            namespaces.Add("System");
 
             // The OpenXmlDocument derived parts all contain a property called "DocumentType"
             // but the property types differ depending on the derived part.  Need to get both
@@ -123,8 +124,7 @@ namespace Serialize.OpenXml.CodeGen
                 Attributes = MemberAttributes.Public | MemberAttributes.Final
             };
             entryPoint.Parameters.Add(
-                new CodeParameterDeclarationExpression(typeof(Stream).Name, paramName) 
-                { Direction = FieldDirection.Ref });
+                new CodeParameterDeclarationExpression(typeof(string).Name, paramName));
             
             // Create package declaration expression first
             entryPoint.Statements.Add(new CodeVariableDeclarationStatement(pkgTypeName, pkgVarName, 

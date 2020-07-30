@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Updated process to account for more OpenXmlPart classes that may require custom AddNewPart methods
   to initialize.
+- Changed the `CreatePackage` method to take in a `String` parameter for the full file path of the target file
+  instead of a `Stream` when generating code for `OpenXmlPackage` objects.  This was to avoid using a C# `ref` 
+  parameter that made using the generated code in a C# project more difficult to use.
 
 ### Fixed
 
