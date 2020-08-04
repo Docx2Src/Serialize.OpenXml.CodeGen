@@ -52,7 +52,7 @@ namespace Serialize.OpenXml.CodeGen
         /// </returns>
         public static CodeCompileUnit GenerateSourceCode(this OpenXmlPackage pkg)
         {
-            return pkg.GenerateSourceCode(NamespaceAliasOptions.Default);
+            return pkg.GenerateSourceCode(new DefaultSerializeSettings());
         }
 
         /// <summary>
@@ -70,6 +70,26 @@ namespace Serialize.OpenXml.CodeGen
         /// the referenced <see cref="OpenXmlPackage"/>.
         /// </returns>
         public static CodeCompileUnit GenerateSourceCode(this OpenXmlPackage pkg, NamespaceAliasOptions opts)
+        {
+            return pkg.GenerateSourceCode(new DefaultSerializeSettings(opts));
+        }
+
+        /// <summary>
+        /// Converts an <see cref="OpenXmlPackage"/> into a CodeDom object that can be used
+        /// to build code in a given .NET language to build the referenced <paramref name="pkg"/>.
+        /// </summary>
+        /// <param name="pkg">
+        /// The <see cref="OpenXmlPackage"/> object to generate source code for.
+        /// </param>
+        /// <param name="settings">
+        /// The <see cref="ISerializeSettings"/> to use during the code generation
+        /// process.
+        /// </param>
+        /// <returns>
+        /// A new <see cref="CodeCompileUnit"/> containing the instructions to build
+        /// the referenced <see cref="OpenXmlPackage"/>.
+        /// </returns>
+        public static CodeCompileUnit GenerateSourceCode(this OpenXmlPackage pkg, ISerializeSettings settings)
         {
             const string pkgVarName = "pkg";
             const string paramName = "pathToFile";
@@ -89,7 +109,7 @@ namespace Serialize.OpenXml.CodeGen
             Type docTypeEnum;
             string docTypeEnumVal;
             KeyValuePair<string, Type> rootVarType;
-            
+
             // Add all initial namespace names first
             namespaces.Add("System");
 
@@ -123,25 +143,26 @@ namespace Serialize.OpenXml.CodeGen
             };
             entryPoint.Parameters.Add(
                 new CodeParameterDeclarationExpression(typeof(string).Name, paramName));
-            
+
             // Create package declaration expression first
-            entryPoint.Statements.Add(new CodeVariableDeclarationStatement(pkgTypeName, pkgVarName, 
+            entryPoint.Statements.Add(new CodeVariableDeclarationStatement(pkgTypeName, pkgVarName,
                 new CodePrimitiveExpression(null)));
-            
+
             // Add the required DocumentType parameter here, if available
             if (docTypeEnum != null)
             {
                 namespaces.Add(docTypeEnum.Namespace);
 
-                var simpleFieldRef = new CodeVariableReferenceExpression(docTypeEnum.GetObjectTypeName(opts.Order));
+                var simpleFieldRef = new CodeVariableReferenceExpression(
+                    docTypeEnum.GetObjectTypeName(settings.NamespaceAliasOptions.Order));
                 docTypeVarRef = new CodeFieldReferenceExpression(simpleFieldRef, docTypeEnumVal);
             }
-            
+
             // initialize package var
             var pkgCreateMethod = new CodeMethodReferenceExpression(
-                new CodeTypeReferenceExpression(pkgTypeName), 
+                new CodeTypeReferenceExpression(pkgTypeName),
                 "Create");
-            var pkgCreateInvoke = new CodeMethodInvokeExpression(pkgCreateMethod, 
+            var pkgCreateInvoke = new CodeMethodInvokeExpression(pkgCreateMethod,
                 new CodeArgumentReferenceExpression(paramName),
                 docTypeVarRef);
             var initializePkg = new CodeAssignStatement(
@@ -169,7 +190,7 @@ namespace Serialize.OpenXml.CodeGen
 
             // Try statements
             tryAndCatch.TryStatements.Add(initializePkg);
-            tryAndCatch.TryStatements.Add(new CodeSnippetStatement(String.Empty));
+            tryAndCatch.TryStatements.AddBlankLine();
             tryAndCatch.TryStatements.Add(partsCreateInvoke);
 
             // If statement to ensure pkgVarName is not null before trying to dispose
@@ -192,7 +213,7 @@ namespace Serialize.OpenXml.CodeGen
                 ReturnType = new CodeTypeReference(),
                 Attributes = MemberAttributes.Private | MemberAttributes.Final
             };
-            createParts.Parameters.Add(new CodeParameterDeclarationExpression(pkgTypeName, pkgVarName) 
+            createParts.Parameters.Add(new CodeParameterDeclarationExpression(pkgTypeName, pkgVarName)
                 { Direction = FieldDirection.Ref });
 
             // Add all of the child part references here
@@ -255,7 +276,7 @@ namespace Serialize.OpenXml.CodeGen
                         bluePrints.Add(bpTemp);
 
                         // Add a blank line for clarity
-                        createParts.Statements.Add(new CodeSnippetStatement(String.Empty));
+                        createParts.Statements.AddBlankLine();
 
                         // now create the child parts for the current one an continue the loop to avoid creating
                         // an additional invalid 'AddNewPart' method for the current main part.
@@ -263,7 +284,7 @@ namespace Serialize.OpenXml.CodeGen
                         {
                             createParts.Statements.AddRange(
                                 OpenXmlPartExtensions.BuildEntryMethodCodeStatements(
-                                    child, opts, partTypeCounts, namespaces, bluePrints, rootVarType));
+                                    child, settings, partTypeCounts, namespaces, bluePrints, rootVarType));
                         }
                         continue;
                     }
@@ -271,7 +292,7 @@ namespace Serialize.OpenXml.CodeGen
                     rootVarType = new KeyValuePair<string, Type>(pkgVarName, pkgType);
                     createParts.Statements.AddRange(
                         OpenXmlPartExtensions.BuildEntryMethodCodeStatements(
-                            pair, opts, partTypeCounts, namespaces, bluePrints, rootVarType));
+                            pair, settings, partTypeCounts, namespaces, bluePrints, rootVarType));
                 }
             }
 
@@ -286,13 +307,13 @@ namespace Serialize.OpenXml.CodeGen
             mainClass.Members.Add(entryPoint);
             mainClass.Members.Add(createParts);
             mainClass.Members.AddRange(OpenXmlPartExtensions.BuildHelperMethods
-                (bluePrints, opts, namespaces));
+                (bluePrints, settings, namespaces));
 
             // Setup the imports
             var codeNameSpaces = new List<CodeNamespaceImport>(namespaces.Count);
             foreach (var ns in namespaces)
             {
-                codeNameSpaces.Add(ns.GetCodeNamespaceImport(opts));
+                codeNameSpaces.Add(ns.GetCodeNamespaceImport(settings.NamespaceAliasOptions));
             }
             codeNameSpaces.Sort(new CodeNamespaceImportComparer());
 
@@ -320,7 +341,7 @@ namespace Serialize.OpenXml.CodeGen
         /// </returns>
         public static string GenerateSourceCode(this OpenXmlPackage pkg, CodeDomProvider provider)
         {
-            return pkg.GenerateSourceCode(NamespaceAliasOptions.Default, provider);
+            return pkg.GenerateSourceCode(new DefaultSerializeSettings(), provider);
         }
 
         /// <summary>
@@ -342,8 +363,31 @@ namespace Serialize.OpenXml.CodeGen
         /// </returns>
         public static string GenerateSourceCode(this OpenXmlPackage pkg, NamespaceAliasOptions opts, CodeDomProvider provider)
         {
+            return pkg.GenerateSourceCode(new DefaultSerializeSettings(opts), provider);
+        }
+
+        /// <summary>
+        /// Converts an <see cref="OpenXmlPackage"/> into a <see cref="string"/> representation
+        /// of dotnet source code that can be compiled to build <paramref name="pkg"/>.
+        /// </summary>
+        /// <param name="pkg">
+        /// The <see cref="OpenXmlPackage"/> object to generate source code for.
+        /// </param>
+        /// <param name="settings">
+        /// The <see cref="ISerializeSettings"/> to use during the code generation
+        /// process.
+        /// </param>
+        /// <param name="provider">
+        /// The <see cref="CodeDomProvider"/> object to create the resulting source code.
+        /// </param>
+        /// <returns>
+        /// A <see cref="string"/> representation of the source code generated by <paramref name="provider"/>
+        /// that could create <paramref name="pkg"/> when compiled.
+        /// </returns>
+        public static string GenerateSourceCode(this OpenXmlPackage pkg, ISerializeSettings settings, CodeDomProvider provider)
+        {
             var codeString = new System.Text.StringBuilder();
-            var code = pkg.GenerateSourceCode(opts);
+            var code = pkg.GenerateSourceCode(settings);
 
             using (var sw = new StringWriter(codeString))
             {

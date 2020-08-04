@@ -40,8 +40,32 @@ namespace Serialize.OpenXml.CodeGen
         #region Public Static Methods
 
         /// <summary>
-        /// Converts an <see cref="OpenXmlElement"/> into a <see cref="CodeCompileUnit"/> 
-        /// object that can be used to build code in a given .NET language that would 
+        /// Builds the appropriate code objects that would build the contents of
+        /// <paramref name="element"/>.
+        /// </summary>
+        /// <param name="element">
+        /// The <see cref="OpenXmlElement"/> object to codify.
+        /// </param>
+        /// <param name="settings">
+        /// The <see cref="ISerializeSettings"/> to use during the code generation
+        /// process.
+        /// </param>
+        /// <returns>
+        /// A collection of code statements and expressions that could be used to generate
+        /// a new <paramref name="element"/> object from code.
+        /// </returns>
+        public static CodeStatementCollection BuildCodeStatements(
+            this OpenXmlElement element,
+            ISerializeSettings settings)
+        {
+            var typeCounts = new Dictionary<Type, int>();
+            var namespaces = new SortedSet<string>();
+            return BuildCodeStatements(element, settings, typeCounts, namespaces, out _);
+        }
+
+        /// <summary>
+        /// Converts an <see cref="OpenXmlElement"/> into a <see cref="CodeCompileUnit"/>
+        /// object that can be used to build code in a given .NET language that would
         /// build the referenced <see cref="OpenXmlElement"/>.
         /// </summary>
         /// <param name="element">
@@ -53,12 +77,12 @@ namespace Serialize.OpenXml.CodeGen
         /// </returns>
         public static CodeCompileUnit GenerateSourceCode(this OpenXmlElement element)
         {
-            return element.GenerateSourceCode(NamespaceAliasOptions.Default);
+            return element.GenerateSourceCode(new DefaultSerializeSettings());
         }
 
         /// <summary>
-        /// Converts an <see cref="OpenXmlElement"/> into a <see cref="CodeCompileUnit"/> 
-        /// object that can be used to build code in a given .NET language that would 
+        /// Converts an <see cref="OpenXmlElement"/> into a <see cref="CodeCompileUnit"/>
+        /// object that can be used to build code in a given .NET language that would
         /// build the referenced <see cref="OpenXmlElement"/>.
         /// </summary>
         /// <param name="element">
@@ -73,6 +97,27 @@ namespace Serialize.OpenXml.CodeGen
         /// </returns>
         public static CodeCompileUnit GenerateSourceCode(this OpenXmlElement element, NamespaceAliasOptions opts)
         {
+            return element.GenerateSourceCode(new DefaultSerializeSettings(opts));
+        }
+
+        /// <summary>
+        /// Converts an <see cref="OpenXmlElement"/> into a <see cref="CodeCompileUnit"/>
+        /// object that can be used to build code in a given .NET language that would
+        /// build the referenced <see cref="OpenXmlElement"/>.
+        /// </summary>
+        /// <param name="element">
+        /// The <see cref="OpenXmlElement"/> object to generate source code for.
+        /// </param>
+        /// <param name="settings">
+        /// The <see cref="ISerializeSettings"/> to use during the code generation
+        /// process.
+        /// </param>
+        /// <returns>
+        /// A new <see cref="CodeCompileUnit"/> containing the instructions to build
+        /// the referenced <see cref="OpenXmlElement"/>.
+        /// </returns>
+        public static CodeCompileUnit GenerateSourceCode(this OpenXmlElement element, ISerializeSettings settings)
+        {
             var result = new CodeCompileUnit();
             var eType = element.GetType();
             var typeCounts = new Dictionary<Type, int>();
@@ -86,7 +131,7 @@ namespace Serialize.OpenXml.CodeGen
                 ReturnType = new CodeTypeReference(eType.Name),
                 Attributes = MemberAttributes.Public | MemberAttributes.Final
             };
-            mainMethod.Statements.AddRange(BuildCodeStatements(element, opts, typeCounts, namespaces, out string tmpName));
+            mainMethod.Statements.AddRange(BuildCodeStatements(element, settings, typeCounts, namespaces, out string tmpName));
             mainMethod.Statements.Add(new CodeMethodReturnStatement(new CodeVariableReferenceExpression(tmpName)));
 
             // Setup the main class next
@@ -96,12 +141,12 @@ namespace Serialize.OpenXml.CodeGen
                 Attributes = MemberAttributes.Public
             };
             mainClass.Members.Add(mainMethod);
-            
+
             // Setup the imports
             var codeNameSpaces = new List<CodeNamespaceImport>(namespaces.Count);
             foreach (var ns in namespaces)
             {
-                codeNameSpaces.Add(ns.GetCodeNamespaceImport(opts));
+                codeNameSpaces.Add(ns.GetCodeNamespaceImport(settings.NamespaceAliasOptions));
             }
             codeNameSpaces.Sort(new CodeNamespaceImportComparer());
 
@@ -124,12 +169,12 @@ namespace Serialize.OpenXml.CodeGen
         /// The <see cref="CodeDomProvider"/> object to create the resulting source code.
         /// </param>
         /// <returns>
-        /// A <see cref="string"/> representation of the source code generated by 
+        /// A <see cref="string"/> representation of the source code generated by
         /// <paramref name="provider"/> that could create <paramref name="element"/> when compiled.
         /// </returns>
         public static string GenerateSourceCode(this OpenXmlElement element, CodeDomProvider provider)
         {
-            return element.GenerateSourceCode(NamespaceAliasOptions.Default, provider);
+            return element.GenerateSourceCode(new DefaultSerializeSettings(), provider);
         }
 
         /// <summary>
@@ -146,13 +191,36 @@ namespace Serialize.OpenXml.CodeGen
         /// The <see cref="CodeDomProvider"/> object to create the resulting source code.
         /// </param>
         /// <returns>
-        /// A <see cref="string"/> representation of the source code generated by 
+        /// A <see cref="string"/> representation of the source code generated by
         /// <paramref name="provider"/> that could create <paramref name="element"/> when compiled.
         /// </returns>
         public static string GenerateSourceCode(this OpenXmlElement element, NamespaceAliasOptions opts, CodeDomProvider provider)
         {
+            return element.GenerateSourceCode(new DefaultSerializeSettings(opts), provider);
+        }
+
+        /// <summary>
+        /// Converts an <see cref="OpenXmlElement"/> into a <see cref="string"/> representation
+        /// of dotnet source code that can be compiled to build <paramref name="element"/>.
+        /// </summary>
+        /// <param name="element">
+        /// The <see cref="OpenXmlElement"/> object to generate source code for.
+        /// </param>
+        /// <param name="settings">
+        /// The <see cref="ISerializeSettings"/> to use during the code generation
+        /// process.
+        /// </param>
+        /// <param name="provider">
+        /// The <see cref="CodeDomProvider"/> object to create the resulting source code.
+        /// </param>
+        /// <returns>
+        /// A <see cref="string"/> representation of the source code generated by
+        /// <paramref name="provider"/> that could create <paramref name="element"/> when compiled.
+        /// </returns>
+        public static string GenerateSourceCode(this OpenXmlElement element, ISerializeSettings settings, CodeDomProvider provider)
+        {
             var codeString = new System.Text.StringBuilder();
-            var code = element.GenerateSourceCode(opts);
+            var code = element.GenerateSourceCode(settings);
 
             using (var sw = new System.IO.StringWriter(codeString))
             {
@@ -161,7 +229,6 @@ namespace Serialize.OpenXml.CodeGen
             }
             return codeString.ToString().RemoveOutputHeaders().Trim();
         }
-
 
         #endregion
 
@@ -174,8 +241,8 @@ namespace Serialize.OpenXml.CodeGen
         /// <param name="e">
         /// The <see cref="OpenXmlElement"/> object to codify.
         /// </param>
-        /// <param name="opts">
-        /// The <see cref="NamespaceAliasOptions"/> to use during the variable naming 
+        /// <param name="settings">
+        /// The <see cref="ISerializeSettings"/> to use during the code generation
         /// process.
         /// </param>
         /// <param name="typeCounts">
@@ -197,20 +264,46 @@ namespace Serialize.OpenXml.CodeGen
         /// </returns>
         internal static CodeStatementCollection BuildCodeStatements(
             OpenXmlElement e,
-            NamespaceAliasOptions opts,
+            ISerializeSettings settings,
             IDictionary<Type, int> typeCounts,
             ISet<string> namespaces,
             out string elementName)
         {
             // argument validation
             if (e is null) throw new ArgumentNullException(nameof(e));
-            if (opts is null) throw new ArgumentNullException(nameof(opts));
+            if (settings is null) throw new ArgumentNullException(nameof(settings));
             if (typeCounts is null) throw new ArgumentNullException(nameof(typeCounts));
             if (namespaces is null) throw new ArgumentNullException(nameof(namespaces));
 
             // method vars
             var result = new CodeStatementCollection();
             var elementType = e.GetType();
+
+            // If current element is OpenXmlUnknownElement and IgnoreUnknownElements
+            // setting is enabled, return an empty CodeStatementCollection and
+            // proceed no further.
+            if (settings.IgnoreUnknownElements && e is OpenXmlUnknownElement)
+            {
+                elementName = String.Empty;
+                return result;
+            }
+
+            // If current element is OpenXmlMiscNode and its XmlNodeType is found in
+            // the IgnoreMiscNoteTypes setting, return an empty CodeStatementCollection
+            // and proceed no futher.
+            if (settings.IgnoreMiscNodeTypes != null &&
+                settings.IgnoreMiscNodeTypes.Count > 0 &&
+                e is OpenXmlMiscNode)
+            {
+                if (settings.IgnoreMiscNodeTypes.Contains(((OpenXmlMiscNode)e).XmlNodeType))
+                {
+                    elementName = String.Empty;
+                    return result;
+                }
+            }
+
+            // Build the initializer for the current element
+            elementName = elementType.GenerateVariableName(typeCounts);
 
             CodeStatement statement;
             CodeObjectCreateExpression createExpression;
@@ -242,9 +335,6 @@ namespace Serialize.OpenXml.CodeGen
             IReadOnlyList<PropertyInfo> enumProperties = cProps
                 .Where(m => m.PropertyType.IsEnumValueType())
                 .ToList();
-
-            // Add blank code line
-            void addBlankLine() => result.Add(new CodeSnippetStatement(String.Empty));
 
             // Create a variable reference statement
             CodeAssignStatement primitivePropertyAssignment(
@@ -310,7 +400,7 @@ namespace Serialize.OpenXml.CodeGen
 
                 // Finish the variable assignment statement
                 result.Add(primitivePropertyAssignment(simpleName, "InnerText", val.ToString()));
-                addBlankLine();
+                result.AddBlankLine();
 
                 // Keep track of the objects to assign to the current element
                 // complex properties
@@ -340,16 +430,13 @@ namespace Serialize.OpenXml.CodeGen
                         result.Add(statement);
                     }
                 }
-                addBlankLine();
+                result.AddBlankLine();
                 simpleTypePropReferences.Add("MCAttributes", simpleName);
             }
 
-            // Build the initializer for the current element
-            elementName = elementType.GenerateVariableName(typeCounts);
-
             // Include the alias prefix if the current element belongs to a class
             // within the namespaces identified to needing an alias
-            junk = elementType.GetObjectTypeName(opts.Order);
+            junk = elementType.GetObjectTypeName(settings.NamespaceAliasOptions.Order);
             createExpression = new CodeObjectCreateExpression(junk);
 
             // OpenXmlUknownElement objects require the calling of custom constructors
@@ -360,7 +447,7 @@ namespace Serialize.OpenXml.CodeGen
                     new CodePrimitiveExpression(e.Prefix),
                     new CodePrimitiveExpression(e.LocalName),
                     new CodePrimitiveExpression(e.NamespaceUri)
-                });   
+                });
             }
             // OpenXmlLeafTextElement classes have constructors that take in
             // one StringValue object as a parameter to populate the new
@@ -377,7 +464,7 @@ namespace Serialize.OpenXml.CodeGen
             // Don't forget to add any additional namespaces to the element
             if (e.NamespaceDeclarations != null && e.NamespaceDeclarations.Count() > 0)
             {
-                addBlankLine();
+                result.AddBlankLine();
                 foreach (var ns in e.NamespaceDeclarations)
                 {
                     methodReferenceExpression = new CodeMethodReferenceExpression(
@@ -391,13 +478,10 @@ namespace Serialize.OpenXml.CodeGen
 
                 // Add a line break if namespace declarations were present and if the current
                 // element has additional properties that need to be filled out.
-                if (cProperties.Count > 0 || simpleTypePropReferences.Count > 0)
+                if ((cProperties.Count > 0 || simpleTypePropReferences.Count > 0) ||
+                    (sProperties.Count > 0 && sProperties.Count(sp => sp.GetValue(e) != null) > 0))
                 {
-                    addBlankLine();
-                }
-                else if (sProperties.Count > 0 && sProperties.Count(sp => sp.GetValue(e) != null) > 0)
-                {
-                    addBlankLine();
+                    result.AddBlankLine();
                 }
             }
 
@@ -451,7 +535,7 @@ namespace Serialize.OpenXml.CodeGen
                 if (val is null) continue;
 
                 pi = cp.PropertyType.GetProperty("Value");
-                simpleName = pi.PropertyType.GetObjectTypeName(opts.Order);
+                simpleName = pi.PropertyType.GetObjectTypeName(settings.NamespaceAliasOptions.Order);
 
                 // Add the simple property type namespace to the set
                 namespaces.Add(pi.PropertyType.Namespace);
@@ -492,25 +576,28 @@ namespace Serialize.OpenXml.CodeGen
                 }
                 result.Add(statement);
             }
-            // Insert an empty line, if possible
-            addBlankLine();
+            // Insert an empty line
+            result.AddBlankLine();
 
             // See if the current element has children and retrieve that information
             if (e.HasChildren)
             {
                 foreach (var child in e)
                 {
+                    // Ignore OpenXmlUnknownElement objects if specified
+                    if (settings.IgnoreUnknownElements && child is OpenXmlUnknownElement) continue;
+
                     // use recursion to generate source code for the child elements
                     result.AddRange(
-                        BuildCodeStatements(child, opts, typeCounts, namespaces, out string appendName));
+                        BuildCodeStatements(child, settings, typeCounts, namespaces, out string appendName));
 
                     methodReferenceExpression = new CodeMethodReferenceExpression(
                         new CodeVariableReferenceExpression(elementName),
                         "Append");
-                    invokeExpression = new CodeMethodInvokeExpression(methodReferenceExpression, 
+                    invokeExpression = new CodeMethodInvokeExpression(methodReferenceExpression,
                         new CodeVariableReferenceExpression(appendName));
                     result.Add(invokeExpression);
-                    addBlankLine();
+                    result.AddBlankLine();
                 }
             }
 
