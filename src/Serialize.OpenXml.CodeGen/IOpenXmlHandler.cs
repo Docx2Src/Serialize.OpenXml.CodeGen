@@ -42,27 +42,5 @@ namespace Serialize.OpenXml.CodeGen
         Type OpenXmlType { get; }
 
         #endregion
-
-        #region Methods
-
-        /// <summary>
-        /// Builds a new <see cref="CodeStatementCollection"/> object containing custom
-        /// code statements to be used instead of the default code statements generated
-        /// for a specific OpenXml SDK type.
-        /// </summary>
-        /// <param name="openxml">
-        /// The <see cref="OpenXmlElement"/>, <see cref="OpenXmlPart"/>, or the
-        /// <see cref="OpenXmlPackage"/> to build the custom code statements for.
-        /// </param>
-        /// <param name="settings">
-        /// The <see cref="ISerializeSettings"/> object for the current request.
-        /// </param>
-        /// <returns>
-        /// A new <see cref="CodeStatementCollection"/> object with the custom code statements
-        /// for <paramref name="openxml"/>.
-        /// </returns>
-        CodeStatementCollection BuildCodeStatements(object openxml, ISerializeSettings settings);
-
-        #endregion
     }
 }

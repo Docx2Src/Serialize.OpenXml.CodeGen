@@ -302,6 +302,20 @@ namespace Serialize.OpenXml.CodeGen
                 }
             }
 
+            // If there is any custom code available for the current element, use the
+            // custom code instead
+            if (settings.Handlers.ContainsKey(elementType))
+            {
+                // Make sure that the current handler implements IOpenXmlElementHandler.
+                // If so, return the custom code statement collection.
+                var customHandler = settings.Handlers[elementType];
+                if (customHandler is IOpenXmlElementHandler)
+                {
+                    return ((IOpenXmlElementHandler)customHandler).BuildCodeStatements(
+                        e, settings, typeCounts, namespaces, out elementName);
+                }
+            }
+
             // Build the initializer for the current element
             elementName = elementType.GenerateVariableName(typeCounts);
 
