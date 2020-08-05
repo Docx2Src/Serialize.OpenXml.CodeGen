@@ -28,7 +28,7 @@ using DocumentFormat.OpenXml;
 namespace Serialize.OpenXml.CodeGen
 {
     /// <summary>
-    /// Defines objects containing custom instructions to use when generating
+    /// Defines objects containing settings to use when generating
     /// source code for OpenXml SDK based files.
     /// </summary>
     public interface ISerializeSettings
