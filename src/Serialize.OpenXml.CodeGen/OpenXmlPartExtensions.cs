@@ -62,6 +62,72 @@ namespace Serialize.OpenXml.CodeGen
         #region Public Static Methods
 
         /// <summary>
+        /// Builds code statements that will build <paramref name="part"/> using the
+        /// <see cref="OpenXmlPart.FeedData(Stream)"/> method.
+        /// </summary>
+        /// <param name="part">
+        /// The <see cref="OpenXmlPart"/> object to build the source code for.
+        /// </param>
+        /// <param name="namespaces">
+        /// <see cref="ISet{T}">Set</see> of <see cref="String"/> values used to keep
+        /// track of all openxml namespaces used during the process.
+        /// </param>
+        /// <returns>
+        /// A <see cref="CodeStatementCollection">collection of code statements</see>
+        /// that would regenerate <paramref name="part"/> using the
+        /// <see cref="OpenXmlPart.FeedData(Stream)"/> method.
+        /// </returns>
+        public static CodeStatementCollection BuildPartFeedData(this OpenXmlPart part, ISet<string> namespaces)
+        {
+            // Make sure no null values were passed.
+            if (part == null) throw new ArgumentNullException(nameof(part));
+            if (namespaces == null) throw new ArgumentNullException(nameof(namespaces));
+
+            // If the root element is not present (aka: null) then perform a simple feed
+            // dump of the part in the current method
+            const string memName = "mem";
+            const string b64Name = "base64";
+
+            var result = new CodeStatementCollection();
+
+            // Add the necessary namespaces by hand to the namespace set
+            namespaces.Add("System");
+            namespaces.Add("System.IO");
+
+            using (var partStream = part.GetStream(FileMode.Open, FileAccess.Read))
+            {
+                using (var mem = new MemoryStream())
+                {
+                    partStream.CopyTo(mem);
+                    result.Add(new CodeVariableDeclarationStatement(typeof(string), b64Name,
+                        new CodePrimitiveExpression(Convert.ToBase64String(mem.ToArray()))));
+                }
+            }
+            result.AddBlankLine();
+
+            var fromBase64 = new CodeMethodReferenceExpression(new CodeVariableReferenceExpression("Convert"),
+                "FromBase64String");
+            var invokeFromBase64 = new CodeMethodInvokeExpression(fromBase64, new CodeVariableReferenceExpression("base64"));
+            var createStream = new CodeObjectCreateExpression(new CodeTypeReference("MemoryStream"),
+                invokeFromBase64, new CodePrimitiveExpression(false));
+            var feedData = new CodeMethodReferenceExpression(new CodeArgumentReferenceExpression(methodParamName), "FeedData");
+            var invokeFeedData = new CodeMethodInvokeExpression(feedData, new CodeVariableReferenceExpression(memName));
+            var disposeMem = new CodeMethodReferenceExpression(new CodeVariableReferenceExpression(memName), "Dispose");
+            var invokeDisposeMem = new CodeMethodInvokeExpression(disposeMem);
+
+            // Setup the try statement
+            var tryAndCatch = new CodeTryCatchFinallyStatement();
+            tryAndCatch.TryStatements.Add(invokeFeedData);
+            tryAndCatch.FinallyStatements.Add(invokeDisposeMem);
+
+            // Put all of the pieces together
+            result.Add(new CodeVariableDeclarationStatement("Stream", memName, createStream));
+            result.Add(tryAndCatch);
+
+            return result;
+        }
+
+        /// <summary>
         /// Converts an <see cref="OpenXmlPart"/> into a CodeDom object that can be used
         /// to build code in a given .NET language to build the referenced <see cref="OpenXmlPart"/>.
         /// </summary>
@@ -525,44 +591,8 @@ namespace Serialize.OpenXml.CodeGen
                 // Code part elements next
                 if (bp.Part.RootElement is null)
                 {
-                    // If the root element is not present (aka: null) then perform a simple feed
-                    // dump of the part in the current method
-                    const string memName = "mem";
-                    const string b64Name = "base64";
-
-                    // Add the necessary namespaces by hand to the namespace set
-                    namespaces.Add("System");
-                    namespaces.Add("System.IO");
-
-                    using (var partStream = bp.Part.GetStream(FileMode.Open, FileAccess.Read))
-                    {
-                        using (var mem = new MemoryStream())
-                        {
-                            partStream.CopyTo(mem);
-                            method.Statements.Add(new CodeVariableDeclarationStatement(typeof(string), b64Name,
-                                new CodePrimitiveExpression(Convert.ToBase64String(mem.ToArray()))));
-                        }
-                    }
-                    method.Statements.AddBlankLine();
-
-                    var fromBase64 = new CodeMethodReferenceExpression(new CodeVariableReferenceExpression("Convert"),
-                        "FromBase64String");
-                    var invokeFromBase64 = new CodeMethodInvokeExpression(fromBase64, new CodeVariableReferenceExpression("base64"));
-                    var createStream = new CodeObjectCreateExpression(new CodeTypeReference("MemoryStream"),
-                        invokeFromBase64, new CodePrimitiveExpression(false));
-                    var feedData = new CodeMethodReferenceExpression(new CodeArgumentReferenceExpression(methodParamName), "FeedData");
-                    var invokeFeedData = new CodeMethodInvokeExpression(feedData, new CodeVariableReferenceExpression(memName));
-                    var disposeMem = new CodeMethodReferenceExpression(new CodeVariableReferenceExpression(memName), "Dispose");
-                    var invokeDisposeMem = new CodeMethodInvokeExpression(disposeMem);
-
-                    // Setup the try statement
-                    var tryAndCatch = new CodeTryCatchFinallyStatement();
-                    tryAndCatch.TryStatements.Add(invokeFeedData);
-                    tryAndCatch.FinallyStatements.Add(invokeDisposeMem);
-
                     // Put all of the pieces together
-                    method.Statements.Add(new CodeVariableDeclarationStatement("Stream", memName, createStream));
-                    method.Statements.Add(tryAndCatch);
+                    method.Statements.AddRange(bp.Part.BuildPartFeedData(namespaces));
                 }
                 else
                 {
