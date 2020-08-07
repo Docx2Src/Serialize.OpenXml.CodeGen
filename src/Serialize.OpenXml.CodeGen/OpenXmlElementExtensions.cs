@@ -291,11 +291,9 @@ namespace Serialize.OpenXml.CodeGen
             // If current element is OpenXmlMiscNode and its XmlNodeType is found in
             // the IgnoreMiscNoteTypes setting, return an empty CodeStatementCollection
             // and proceed no futher.
-            if (settings.IgnoreMiscNodeTypes != null &&
-                settings.IgnoreMiscNodeTypes.Count > 0 &&
-                e is OpenXmlMiscNode)
+            if (e is OpenXmlMiscNode eMisc)
             {
-                if (settings.IgnoreMiscNodeTypes.Contains(((OpenXmlMiscNode)e).XmlNodeType))
+                if (settings.IgnoreMiscNodeTypes != null && settings.IgnoreMiscNodeTypes.Contains(eMisc.XmlNodeType))
                 {
                     elementName = String.Empty;
                     return result;
@@ -309,9 +307,9 @@ namespace Serialize.OpenXml.CodeGen
                 // Make sure that the current handler implements IOpenXmlElementHandler.
                 // If so, return the custom code statement collection.
                 var customHandler = settings.Handlers[elementType];
-                if (customHandler is IOpenXmlElementHandler)
+                if (customHandler is IOpenXmlElementHandler cHandler)
                 {
-                    return ((IOpenXmlElementHandler)customHandler).BuildCodeStatements(
+                    return cHandler.BuildCodeStatements(
                         e, settings, typeCounts, namespaces, out elementName);
                 }
             }
