@@ -21,7 +21,6 @@ DEALINGS IN THE SOFTWARE.
 */
 
 using DocumentFormat.OpenXml;
-using Serialize.OpenXml.CodeGen;
 using System;
 using System.CodeDom;
 using System.Collections.Generic;
@@ -36,24 +35,8 @@ namespace Serialize.OpenXml.CodeGen.Extentions
     /// specific to the generating code dom representations of
     /// OpenXml objects.
     /// </summary>
-    internal static class TypeExtensions
+    public static class TypeExtensions
     {
-        #region Private Static Fields
-
-        /// <summary>
-        /// Holds all of the OpenXml SDK namespaces that require aliases when
-        /// building the <see cref="CodeNamespaceImport"/> objects for the
-        /// given project.
-        /// </summary>
-        private static readonly IReadOnlyDictionary<string, string> _namespaceAliases;
-
-        /// <summary>
-        /// Holds all known types that are considered simple values.
-        /// </summary>
-        private static readonly IReadOnlyList<Type> _simpleValueTypes;
-
-        #endregion
-
         #region Static Constructors
 
         /// <summary>
@@ -62,7 +45,7 @@ namespace Serialize.OpenXml.CodeGen.Extentions
         static TypeExtensions()
         {
             // Setup the namespace alias collection
-            _namespaceAliases = new Dictionary<string, string>(StringComparer.Ordinal)
+            NamespaceAliases = new Dictionary<string, string>(StringComparer.Ordinal)
             {                
                 {"DocumentFormat.OpenXml.ExtendedProperties", "AP"},
                 {"DocumentFormat.OpenXml.VariantTypes", "VT"},
@@ -128,7 +111,7 @@ namespace Serialize.OpenXml.CodeGen.Extentions
                 typeof(OpenXmlSimpleValue<DateTime>)
             };
 
-            _simpleValueTypes = simpleTypes.ToList();
+            SimpleValueTypes = simpleTypes.ToList();
         }
 
         #endregion
@@ -139,8 +122,16 @@ namespace Serialize.OpenXml.CodeGen.Extentions
         /// Gets the collection of OpenXml namespaces and their corrisponding
         /// import aliases.
         /// </summary>
-        public static IReadOnlyDictionary<string, string> NamespaceAliases 
-            => _namespaceAliases;
+        public static IReadOnlyDictionary<string, string> NamespaceAliases { get; private set; }
+
+        /// <summary>
+        /// Gets a collection of <see cref="OpenXmlSimpleValue{T}"/> based types.
+        /// </summary>
+        /// <remarks>
+        /// This is used to identify property types of <see cref="OpenXmlElement"/> objects that
+        /// can be initialized with simple values of their base type counterparts.
+        /// </remarks>
+        public static IReadOnlyList<Type> SimpleValueTypes { get; private set; }
 
         #endregion
 
@@ -242,10 +233,10 @@ namespace Serialize.OpenXml.CodeGen.Extentions
         /// </returns>
         public static string GetObjectTypeName(this Type t, NamespaceAliasOrder order)
         {
-            if (_namespaceAliases.ContainsKey(t.Namespace))
+            if (NamespaceAliases.ContainsKey(t.Namespace))
             {
                 return order == NamespaceAliasOrder.None ? t.FullName :
-                    $"{_namespaceAliases[t.Namespace]}.{t.Name}";
+                    $"{NamespaceAliases[t.Namespace]}.{t.Name}";
             }
             return t.Name;
         }
@@ -342,7 +333,7 @@ namespace Serialize.OpenXml.CodeGen.Extentions
             // OpenXmlSimpleType
             foreach (var p in props)
             {
-                foreach (var item in _simpleValueTypes)
+                foreach (var item in SimpleValueTypes)
                 {
                     if (p.PropertyType.Equals(item) ||
                         p.PropertyType.IsSubclassOf(item))
@@ -397,7 +388,7 @@ namespace Serialize.OpenXml.CodeGen.Extentions
         /// </returns>
         public static bool IsSimpleValueType(this Type t)
         {
-            foreach (var item in _simpleValueTypes)
+            foreach (var item in SimpleValueTypes)
             {
                 if (t.Equals(item) || t.IsSubclassOf(item))
                 {

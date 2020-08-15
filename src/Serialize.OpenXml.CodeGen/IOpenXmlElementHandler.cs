@@ -64,6 +64,10 @@ namespace Serialize.OpenXml.CodeGen
         /// A collection of code statements and expressions that could be used to generate
         /// a new <paramref name="element"/> object from code.
         /// </returns>
+        /// <remarks>
+        /// If this method returns <see langword="null"/>, the default implementation will
+        /// be used instead.
+        /// </remarks>
         CodeStatementCollection BuildCodeStatements(
             OpenXmlElement element,
             ISerializeSettings settings,

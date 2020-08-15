@@ -41,201 +41,6 @@ namespace Serialize.OpenXml.CodeGen
 
         /// <summary>
         /// Builds the appropriate code objects that would build the contents of
-        /// <paramref name="element"/>.
-        /// </summary>
-        /// <param name="element">
-        /// The <see cref="OpenXmlElement"/> object to codify.
-        /// </param>
-        /// <param name="settings">
-        /// The <see cref="ISerializeSettings"/> to use during the code generation
-        /// process.
-        /// </param>
-        /// <returns>
-        /// A collection of code statements and expressions that could be used to generate
-        /// a new <paramref name="element"/> object from code.
-        /// </returns>
-        public static CodeStatementCollection BuildCodeStatements(
-            this OpenXmlElement element,
-            ISerializeSettings settings)
-        {
-            var typeCounts = new Dictionary<Type, int>();
-            var namespaces = new SortedSet<string>();
-            return BuildCodeStatements(element, settings, typeCounts, namespaces, out _);
-        }
-
-        /// <summary>
-        /// Converts an <see cref="OpenXmlElement"/> into a <see cref="CodeCompileUnit"/>
-        /// object that can be used to build code in a given .NET language that would
-        /// build the referenced <see cref="OpenXmlElement"/>.
-        /// </summary>
-        /// <param name="element">
-        /// The <see cref="OpenXmlElement"/> object to generate source code for.
-        /// </param>
-        /// <returns>
-        /// A new <see cref="CodeCompileUnit"/> containing the instructions to build
-        /// the referenced <see cref="OpenXmlElement"/>.
-        /// </returns>
-        public static CodeCompileUnit GenerateSourceCode(this OpenXmlElement element)
-        {
-            return element.GenerateSourceCode(new DefaultSerializeSettings());
-        }
-
-        /// <summary>
-        /// Converts an <see cref="OpenXmlElement"/> into a <see cref="CodeCompileUnit"/>
-        /// object that can be used to build code in a given .NET language that would
-        /// build the referenced <see cref="OpenXmlElement"/>.
-        /// </summary>
-        /// <param name="element">
-        /// The <see cref="OpenXmlElement"/> object to generate source code for.
-        /// </param>
-        /// <param name="opts">
-        /// The <see cref="NamespaceAliasOptions"/> to apply to the resulting source code.
-        /// </param>
-        /// <returns>
-        /// A new <see cref="CodeCompileUnit"/> containing the instructions to build
-        /// the referenced <see cref="OpenXmlElement"/>.
-        /// </returns>
-        public static CodeCompileUnit GenerateSourceCode(this OpenXmlElement element, NamespaceAliasOptions opts)
-        {
-            return element.GenerateSourceCode(new DefaultSerializeSettings(opts));
-        }
-
-        /// <summary>
-        /// Converts an <see cref="OpenXmlElement"/> into a <see cref="CodeCompileUnit"/>
-        /// object that can be used to build code in a given .NET language that would
-        /// build the referenced <see cref="OpenXmlElement"/>.
-        /// </summary>
-        /// <param name="element">
-        /// The <see cref="OpenXmlElement"/> object to generate source code for.
-        /// </param>
-        /// <param name="settings">
-        /// The <see cref="ISerializeSettings"/> to use during the code generation
-        /// process.
-        /// </param>
-        /// <returns>
-        /// A new <see cref="CodeCompileUnit"/> containing the instructions to build
-        /// the referenced <see cref="OpenXmlElement"/>.
-        /// </returns>
-        public static CodeCompileUnit GenerateSourceCode(this OpenXmlElement element, ISerializeSettings settings)
-        {
-            var result = new CodeCompileUnit();
-            var eType = element.GetType();
-            var typeCounts = new Dictionary<Type, int>();
-            var namespaces = new SortedSet<string>();
-            var mainNamespace = new CodeNamespace("OpenXmlSample");
-
-            // Setup the main method
-            var mainMethod = new CodeMemberMethod()
-            {
-                Name = $"Build{eType.Name}",
-                ReturnType = new CodeTypeReference(eType.Name),
-                Attributes = MemberAttributes.Public | MemberAttributes.Final
-            };
-            mainMethod.Statements.AddRange(BuildCodeStatements(element, settings, typeCounts, namespaces, out string tmpName));
-            mainMethod.Statements.Add(new CodeMethodReturnStatement(new CodeVariableReferenceExpression(tmpName)));
-
-            // Setup the main class next
-            var mainClass = new CodeTypeDeclaration($"{eType.Name}BuilderClass")
-            {
-                IsClass = true,
-                Attributes = MemberAttributes.Public
-            };
-            mainClass.Members.Add(mainMethod);
-
-            // Setup the imports
-            var codeNameSpaces = new List<CodeNamespaceImport>(namespaces.Count);
-            foreach (var ns in namespaces)
-            {
-                codeNameSpaces.Add(ns.GetCodeNamespaceImport(settings.NamespaceAliasOptions));
-            }
-            codeNameSpaces.Sort(new CodeNamespaceImportComparer());
-
-            mainNamespace.Imports.AddRange(codeNameSpaces.ToArray());
-            mainNamespace.Types.Add(mainClass);
-
-            // Finish up
-            result.Namespaces.Add(mainNamespace);
-            return result;
-        }
-
-        /// <summary>
-        /// Converts an <see cref="OpenXmlElement"/> into a <see cref="string"/> representation
-        /// of dotnet source code that can be compiled to build <paramref name="element"/>.
-        /// </summary>
-        /// <param name="element">
-        /// The <see cref="OpenXmlElement"/> object to generate source code for.
-        /// </param>
-        /// <param name="provider">
-        /// The <see cref="CodeDomProvider"/> object to create the resulting source code.
-        /// </param>
-        /// <returns>
-        /// A <see cref="string"/> representation of the source code generated by
-        /// <paramref name="provider"/> that could create <paramref name="element"/> when compiled.
-        /// </returns>
-        public static string GenerateSourceCode(this OpenXmlElement element, CodeDomProvider provider)
-        {
-            return element.GenerateSourceCode(new DefaultSerializeSettings(), provider);
-        }
-
-        /// <summary>
-        /// Converts an <see cref="OpenXmlElement"/> into a <see cref="string"/> representation
-        /// of dotnet source code that can be compiled to build <paramref name="element"/>.
-        /// </summary>
-        /// <param name="element">
-        /// The <see cref="OpenXmlElement"/> object to generate source code for.
-        /// </param>
-        /// <param name="opts">
-        /// The <see cref="NamespaceAliasOptions"/> to apply to the resulting source code.
-        /// </param>
-        /// <param name="provider">
-        /// The <see cref="CodeDomProvider"/> object to create the resulting source code.
-        /// </param>
-        /// <returns>
-        /// A <see cref="string"/> representation of the source code generated by
-        /// <paramref name="provider"/> that could create <paramref name="element"/> when compiled.
-        /// </returns>
-        public static string GenerateSourceCode(this OpenXmlElement element, NamespaceAliasOptions opts, CodeDomProvider provider)
-        {
-            return element.GenerateSourceCode(new DefaultSerializeSettings(opts), provider);
-        }
-
-        /// <summary>
-        /// Converts an <see cref="OpenXmlElement"/> into a <see cref="string"/> representation
-        /// of dotnet source code that can be compiled to build <paramref name="element"/>.
-        /// </summary>
-        /// <param name="element">
-        /// The <see cref="OpenXmlElement"/> object to generate source code for.
-        /// </param>
-        /// <param name="settings">
-        /// The <see cref="ISerializeSettings"/> to use during the code generation
-        /// process.
-        /// </param>
-        /// <param name="provider">
-        /// The <see cref="CodeDomProvider"/> object to create the resulting source code.
-        /// </param>
-        /// <returns>
-        /// A <see cref="string"/> representation of the source code generated by
-        /// <paramref name="provider"/> that could create <paramref name="element"/> when compiled.
-        /// </returns>
-        public static string GenerateSourceCode(this OpenXmlElement element, ISerializeSettings settings, CodeDomProvider provider)
-        {
-            var codeString = new System.Text.StringBuilder();
-            var code = element.GenerateSourceCode(settings);
-
-            using (var sw = new System.IO.StringWriter(codeString))
-            {
-                provider.GenerateCodeFromCompileUnit(code, sw,
-                    new CodeGeneratorOptions() { BracingStyle = "C" });
-            }
-            return codeString.ToString().RemoveOutputHeaders().Trim();
-        }
-
-        #endregion
-
-        #region Internal Static Methods
-
-        /// <summary>
-        /// Builds the appropriate code objects that would build the contents of
         /// <paramref name="e"/>.
         /// </summary>
         /// <param name="e">
@@ -262,8 +67,8 @@ namespace Serialize.OpenXml.CodeGen
         /// A collection of code statements and expressions that could be used to generate
         /// a new <paramref name="e"/> object from code.
         /// </returns>
-        internal static CodeStatementCollection BuildCodeStatements(
-            OpenXmlElement e,
+        public static CodeStatementCollection BuildCodeStatements(
+            this OpenXmlElement e,
             ISerializeSettings settings,
             IDictionary<Type, int> typeCounts,
             ISet<string> namespaces,
@@ -309,8 +114,12 @@ namespace Serialize.OpenXml.CodeGen
                 var customHandler = settings.Handlers[elementType];
                 if (customHandler is IOpenXmlElementHandler cHandler)
                 {
-                    return cHandler.BuildCodeStatements(
+                    // Only return the custom code statements if the hanlder
+                    // implementation doesn't return null
+                    var customCodeStatements = cHandler.BuildCodeStatements(
                         e, settings, typeCounts, namespaces, out elementName);
+
+                    if (customCodeStatements != null) return customCodeStatements;
                 }
             }
 
@@ -601,7 +410,7 @@ namespace Serialize.OpenXml.CodeGen
 
                     // use recursion to generate source code for the child elements
                     result.AddRange(
-                        BuildCodeStatements(child, settings, typeCounts, namespaces, out string appendName));
+                        child.BuildCodeStatements(settings, typeCounts, namespaces, out string appendName));
 
                     methodReferenceExpression = new CodeMethodReferenceExpression(
                         new CodeVariableReferenceExpression(elementName),
@@ -615,6 +424,173 @@ namespace Serialize.OpenXml.CodeGen
 
             // Return all of the collected expressions and statements
             return result;
+        }
+
+        /// <summary>
+        /// Converts an <see cref="OpenXmlElement"/> into a <see cref="CodeCompileUnit"/>
+        /// object that can be used to build code in a given .NET language that would
+        /// build the referenced <see cref="OpenXmlElement"/>.
+        /// </summary>
+        /// <param name="element">
+        /// The <see cref="OpenXmlElement"/> object to generate source code for.
+        /// </param>
+        /// <returns>
+        /// A new <see cref="CodeCompileUnit"/> containing the instructions to build
+        /// the referenced <see cref="OpenXmlElement"/>.
+        /// </returns>
+        public static CodeCompileUnit GenerateSourceCode(this OpenXmlElement element)
+        {
+            return element.GenerateSourceCode(new DefaultSerializeSettings());
+        }
+
+        /// <summary>
+        /// Converts an <see cref="OpenXmlElement"/> into a <see cref="CodeCompileUnit"/>
+        /// object that can be used to build code in a given .NET language that would
+        /// build the referenced <see cref="OpenXmlElement"/>.
+        /// </summary>
+        /// <param name="element">
+        /// The <see cref="OpenXmlElement"/> object to generate source code for.
+        /// </param>
+        /// <param name="opts">
+        /// The <see cref="NamespaceAliasOptions"/> to apply to the resulting source code.
+        /// </param>
+        /// <returns>
+        /// A new <see cref="CodeCompileUnit"/> containing the instructions to build
+        /// the referenced <see cref="OpenXmlElement"/>.
+        /// </returns>
+        public static CodeCompileUnit GenerateSourceCode(this OpenXmlElement element, NamespaceAliasOptions opts)
+        {
+            return element.GenerateSourceCode(new DefaultSerializeSettings(opts));
+        }
+
+        /// <summary>
+        /// Converts an <see cref="OpenXmlElement"/> into a <see cref="CodeCompileUnit"/>
+        /// object that can be used to build code in a given .NET language that would
+        /// build the referenced <see cref="OpenXmlElement"/>.
+        /// </summary>
+        /// <param name="element">
+        /// The <see cref="OpenXmlElement"/> object to generate source code for.
+        /// </param>
+        /// <param name="settings">
+        /// The <see cref="ISerializeSettings"/> to use during the code generation
+        /// process.
+        /// </param>
+        /// <returns>
+        /// A new <see cref="CodeCompileUnit"/> containing the instructions to build
+        /// the referenced <see cref="OpenXmlElement"/>.
+        /// </returns>
+        public static CodeCompileUnit GenerateSourceCode(this OpenXmlElement element, ISerializeSettings settings)
+        {
+            var result = new CodeCompileUnit();
+            var eType = element.GetType();
+            var typeCounts = new Dictionary<Type, int>();
+            var namespaces = new SortedSet<string>();
+            var mainNamespace = new CodeNamespace("OpenXmlSample");
+
+            // Setup the main method
+            var mainMethod = new CodeMemberMethod()
+            {
+                Name = $"Build{eType.Name}",
+                ReturnType = new CodeTypeReference(eType.Name),
+                Attributes = MemberAttributes.Public | MemberAttributes.Final
+            };
+            mainMethod.Statements.AddRange(element.BuildCodeStatements(settings, typeCounts, namespaces, out string tmpName));
+            mainMethod.Statements.Add(new CodeMethodReturnStatement(new CodeVariableReferenceExpression(tmpName)));
+
+            // Setup the main class next
+            var mainClass = new CodeTypeDeclaration($"{eType.Name}BuilderClass")
+            {
+                IsClass = true,
+                Attributes = MemberAttributes.Public
+            };
+            mainClass.Members.Add(mainMethod);
+
+            // Setup the imports
+            var codeNameSpaces = new List<CodeNamespaceImport>(namespaces.Count);
+            foreach (var ns in namespaces)
+            {
+                codeNameSpaces.Add(ns.GetCodeNamespaceImport(settings.NamespaceAliasOptions));
+            }
+            codeNameSpaces.Sort(new CodeNamespaceImportComparer());
+
+            mainNamespace.Imports.AddRange(codeNameSpaces.ToArray());
+            mainNamespace.Types.Add(mainClass);
+
+            // Finish up
+            result.Namespaces.Add(mainNamespace);
+            return result;
+        }
+
+        /// <summary>
+        /// Converts an <see cref="OpenXmlElement"/> into a <see cref="string"/> representation
+        /// of dotnet source code that can be compiled to build <paramref name="element"/>.
+        /// </summary>
+        /// <param name="element">
+        /// The <see cref="OpenXmlElement"/> object to generate source code for.
+        /// </param>
+        /// <param name="provider">
+        /// The <see cref="CodeDomProvider"/> object to create the resulting source code.
+        /// </param>
+        /// <returns>
+        /// A <see cref="string"/> representation of the source code generated by
+        /// <paramref name="provider"/> that could create <paramref name="element"/> when compiled.
+        /// </returns>
+        public static string GenerateSourceCode(this OpenXmlElement element, CodeDomProvider provider)
+        {
+            return element.GenerateSourceCode(new DefaultSerializeSettings(), provider);
+        }
+
+        /// <summary>
+        /// Converts an <see cref="OpenXmlElement"/> into a <see cref="string"/> representation
+        /// of dotnet source code that can be compiled to build <paramref name="element"/>.
+        /// </summary>
+        /// <param name="element">
+        /// The <see cref="OpenXmlElement"/> object to generate source code for.
+        /// </param>
+        /// <param name="opts">
+        /// The <see cref="NamespaceAliasOptions"/> to apply to the resulting source code.
+        /// </param>
+        /// <param name="provider">
+        /// The <see cref="CodeDomProvider"/> object to create the resulting source code.
+        /// </param>
+        /// <returns>
+        /// A <see cref="string"/> representation of the source code generated by
+        /// <paramref name="provider"/> that could create <paramref name="element"/> when compiled.
+        /// </returns>
+        public static string GenerateSourceCode(this OpenXmlElement element, NamespaceAliasOptions opts, CodeDomProvider provider)
+        {
+            return element.GenerateSourceCode(new DefaultSerializeSettings(opts), provider);
+        }
+
+        /// <summary>
+        /// Converts an <see cref="OpenXmlElement"/> into a <see cref="string"/> representation
+        /// of dotnet source code that can be compiled to build <paramref name="element"/>.
+        /// </summary>
+        /// <param name="element">
+        /// The <see cref="OpenXmlElement"/> object to generate source code for.
+        /// </param>
+        /// <param name="settings">
+        /// The <see cref="ISerializeSettings"/> to use during the code generation
+        /// process.
+        /// </param>
+        /// <param name="provider">
+        /// The <see cref="CodeDomProvider"/> object to create the resulting source code.
+        /// </param>
+        /// <returns>
+        /// A <see cref="string"/> representation of the source code generated by
+        /// <paramref name="provider"/> that could create <paramref name="element"/> when compiled.
+        /// </returns>
+        public static string GenerateSourceCode(this OpenXmlElement element, ISerializeSettings settings, CodeDomProvider provider)
+        {
+            var codeString = new System.Text.StringBuilder();
+            var code = element.GenerateSourceCode(settings);
+
+            using (var sw = new System.IO.StringWriter(codeString))
+            {
+                provider.GenerateCodeFromCompileUnit(code, sw,
+                    new CodeGeneratorOptions() { BracingStyle = "C" });
+            }
+            return codeString.ToString().RemoveOutputHeaders().Trim();
         }
 
         #endregion

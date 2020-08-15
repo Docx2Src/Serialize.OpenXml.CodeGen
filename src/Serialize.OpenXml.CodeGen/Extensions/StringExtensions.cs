@@ -33,7 +33,7 @@ namespace Serialize.OpenXml.CodeGen.Extentions
     /// <summary>
     /// Static class containing extension methods for the <see cref="String"/> class.
     /// </summary>
-    internal static class StringExtensions
+    public static class StringExtensions
     {
         #region Public Static Methods
 

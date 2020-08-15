@@ -30,7 +30,7 @@ namespace Serialize.OpenXml.CodeGen
     /// Simple organization class used to keep track of all the OpenXmlPart details needed
     /// to complete a code generation request.
     /// </summary>
-    internal sealed class OpenXmlPartBluePrint : IEquatable<OpenXmlPartBluePrint>
+    public sealed class OpenXmlPartBluePrint : IEquatable<OpenXmlPartBluePrint>
     {
         #region Public Constructrs
 
@@ -54,6 +54,7 @@ namespace Serialize.OpenXml.CodeGen
             Part = part ?? throw new ArgumentNullException(nameof(part));
             VariableName = varName ?? throw new ArgumentNullException(nameof(varName));
             MethodName = this.CreateMethodName(VariableName);
+            PartType = Part.GetType();
         }
 
         #endregion
@@ -70,6 +71,11 @@ namespace Serialize.OpenXml.CodeGen
         /// Gets the <see cref="OpenXmlPart"/> object that this instance represents.
         /// </summary>
         public OpenXmlPart Part { get; private set; }
+
+        /// <summary>
+        /// Gets the <see cref="Type"/> of <see cref="Part"/> that this instance represents.
+        /// </summary>
+        public Type PartType { get; private set; }
 
         /// <summary>
         /// Gets the <see cref="Uri"/> for this object.

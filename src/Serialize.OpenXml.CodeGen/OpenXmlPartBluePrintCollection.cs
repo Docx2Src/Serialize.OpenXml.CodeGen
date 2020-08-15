@@ -29,15 +29,15 @@ namespace Serialize.OpenXml.CodeGen
     /// Collection class used to organize all of the <see cref="OpenXmlPartBluePrint"/> objects
     /// for a single request.
     /// </summary>
-    internal class OpenXmlPartBluePrintCollection : KeyedCollection<Uri, OpenXmlPartBluePrint>
+    public sealed class OpenXmlPartBluePrintCollection : KeyedCollection<Uri, OpenXmlPartBluePrint>
     {
-        #region Public Constructors
+        #region Internal Constructors
 
         /// <summary>
         /// Initializes a new instance of the <see cref="OpenXmlPartBluePrintCollection"/> class
         /// that is empty.
         /// </summary>
-        public OpenXmlPartBluePrintCollection() : base(new UriEqualityComparer()) { }
+        internal OpenXmlPartBluePrintCollection() : base(new UriEqualityComparer()) { }
 
         #endregion
 
