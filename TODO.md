@@ -10,13 +10,16 @@ This is a simple list of current planned items to work on
   * ~~Appveyor~~
   * ~~TravisCI (maybe)~~
 * ~~Create nuget package~~
-* Add hooks system to allow users to create custom code generation by OpenXml type
+* Add hooks system to allow users to create custom code generation by OpenXml type _(in progress)_
 * Setup Wiki
 * Add examples
 * Add test cases
 * Simplify code generation, if possible
 
-## Future (No eta)
+## Version 2.0
 
 * Investigate using rosyln to generate source code
+
+## Future (No eta)
+
 * Create async versions of the CreateSourceCode extension methods
