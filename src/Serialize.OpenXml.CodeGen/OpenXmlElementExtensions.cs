@@ -107,11 +107,10 @@ namespace Serialize.OpenXml.CodeGen
 
             // If there is any custom code available for the current element, use the
             // custom code instead
-            if (settings.Handlers != null && settings.Handlers.ContainsKey(elementType))
+            if (settings?.Handlers != null && settings.Handlers.TryGetValue(elementType, out IOpenXmlHandler customHandler))
             {
                 // Make sure that the current handler implements IOpenXmlElementHandler.
                 // If so, return the custom code statement collection.
-                var customHandler = settings.Handlers[elementType];
                 if (customHandler is IOpenXmlElementHandler cHandler)
                 {
                     // Only return the custom code statements if the hanlder

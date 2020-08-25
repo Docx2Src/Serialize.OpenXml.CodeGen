@@ -94,9 +94,10 @@ namespace Serialize.OpenXml.CodeGen
             if (settings is null) throw new ArgumentNullException(nameof(settings));
             if (blueprints is null) throw new ArgumentNullException(nameof(blueprints));
             if (String.IsNullOrWhiteSpace(rootVar.Key)) throw new ArgumentNullException(nameof(rootVar.Key));
+            bool hasHandlers = settings?.Handlers != null;
 
             // Use the custom handler methods if present and provide actual code
-            if (settings.Handlers.TryGetValue(part.OpenXmlPart.GetType(), out IOpenXmlHandler h))
+            if (hasHandlers && settings.Handlers.TryGetValue(part.OpenXmlPart.GetType(), out IOpenXmlHandler h))
             {
                 if (h is IOpenXmlPartHandler partHandler)
                 {
@@ -299,13 +300,13 @@ namespace Serialize.OpenXml.CodeGen
             var localTypeCounts = new Dictionary<Type, int>();
             Type rootElementType;
             CodeMemberMethod method;
+            bool hasHandlers = settings?.Handlers != null;
 
             foreach (var bp in bluePrints)
             {
                 // Implement the custom helper if present
-                if (settings.Handlers.ContainsKey(bp.PartType))
+                if (hasHandlers && settings.Handlers.TryGetValue(bp.PartType, out IOpenXmlHandler h))
                 {
-                    var h = settings.Handlers[bp.PartType];
                     if (h is IOpenXmlPartHandler partHandler)
                     {
                         method = partHandler.BuildHelperMethod(
