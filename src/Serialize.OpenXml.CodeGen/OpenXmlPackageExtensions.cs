@@ -98,7 +98,7 @@ namespace Serialize.OpenXml.CodeGen
             var pkgTypeName = pkgType.Name;
             var partTypeCounts = new Dictionary<string, int>();
             var namespaces = new SortedSet<string>();
-            var mainNamespace = new CodeNamespace("OpenXmlSample");
+            var mainNamespace = new CodeNamespace(settings.NamespaceName);
             var bluePrints = new OpenXmlPartBluePrintCollection();
             CodeConditionStatement conditionStatement;
             CodeMemberMethod entryPoint;

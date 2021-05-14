@@ -70,6 +70,11 @@ namespace Serialize.OpenXml.CodeGen
         /// </summary>s
         NamespaceAliasOptions NamespaceAliasOptions { get; }
 
+        /// <summary>
+        /// Gets the name of the namespace to use for the generated code.
+        /// </summary>
+        string NamespaceName { get; }
+
         #endregion
     }
 }

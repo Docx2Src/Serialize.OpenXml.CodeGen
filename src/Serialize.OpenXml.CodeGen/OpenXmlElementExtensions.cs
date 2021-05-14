@@ -484,13 +484,14 @@ namespace Serialize.OpenXml.CodeGen
             var eType = element.GetType();
             var typeCounts = new Dictionary<Type, int>();
             var namespaces = new SortedSet<string>();
-            var mainNamespace = new CodeNamespace("OpenXmlSample");
+            var mainNamespace = new CodeNamespace(settings.NamespaceName);
 
             // Setup the main method
             var mainMethod = new CodeMemberMethod()
             {
                 Name = $"Build{eType.Name}",
-                ReturnType = new CodeTypeReference(eType.Name),
+                ReturnType = new CodeTypeReference(
+                    eType.GetObjectTypeName(settings.NamespaceAliasOptions.Order)),
                 Attributes = MemberAttributes.Public | MemberAttributes.Final
             };
             mainMethod.Statements.AddRange(element.BuildCodeStatements(settings, typeCounts, namespaces, out string tmpName));

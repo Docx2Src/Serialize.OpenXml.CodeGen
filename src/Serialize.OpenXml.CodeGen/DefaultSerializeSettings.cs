@@ -71,6 +71,9 @@ namespace Serialize.OpenXml.CodeGen
             private set;
         }
 
+        /// <inheritdoc/>
+        public string NamespaceName => "OpenXmlSample";
+
         #endregion
     }
 }

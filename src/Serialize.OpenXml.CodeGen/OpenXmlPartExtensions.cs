@@ -598,7 +598,7 @@ namespace Serialize.OpenXml.CodeGen
             var varName = eType.Name.ToCamelCase();
             var partTypeCounts = new Dictionary<string, int>();
             var namespaces = new SortedSet<string>();
-            var mainNamespace = new CodeNamespace("OpenXmlSample");
+            var mainNamespace = new CodeNamespace(settings.NamespaceName);
             var bluePrints = new OpenXmlPartBluePrintCollection();
 
             // Assign the appropriate variable name
