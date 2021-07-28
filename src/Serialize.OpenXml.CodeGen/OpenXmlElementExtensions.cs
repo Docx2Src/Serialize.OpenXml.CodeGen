@@ -490,8 +490,7 @@ namespace Serialize.OpenXml.CodeGen
             var mainMethod = new CodeMemberMethod()
             {
                 Name = $"Build{eType.Name}",
-                ReturnType = new CodeTypeReference(
-                    eType.GetObjectTypeName(settings.NamespaceAliasOptions.Order)),
+                ReturnType = new CodeTypeReference(eType.GetObjectTypeName(settings.NamespaceAliasOptions.Order)),
                 Attributes = MemberAttributes.Public | MemberAttributes.Final
             };
             mainMethod.Statements.AddRange(element.BuildCodeStatements(settings, typeCounts, namespaces, out string tmpName));
