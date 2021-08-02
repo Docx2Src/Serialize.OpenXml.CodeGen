@@ -5,17 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [0.4.0-alpha] - TBD
+## [0.4.0-beta] - TBD
 
 ### Added
 
 - New `ISerializeSettings` interface to allow greater flexibility in the source code generation.
-- New `IOpenXmlHandler` based interfaces that allow developers to control how source code is created.
+- New `IOpenXmlHandler` interface that allow developers to control how source code is created.
 
 ### Changed
 
 - Change visibility of many of the static method helpers so developers can use them in their custom
   code generation.
+- Update DocumentFormat.OpenXml reference to 2.13.0.
+  
+### Fixed
+
+- Make sure that the return type of generated element methods include the namespace alias if 
+  needed.
+- Choose between the default method or contentType parameter method for the custom OpenXmlPart.AddNewPart
+  methods (ex: pkg.AddExtendedFilePropertiesPart() or mainDocumentPart.AddImagePart("image/x-emf")) 
 
 ## [0.3.2-alpha] - 2020-07-30
 

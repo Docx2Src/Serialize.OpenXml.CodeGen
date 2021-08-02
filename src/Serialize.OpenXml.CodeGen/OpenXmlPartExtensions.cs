@@ -110,14 +110,6 @@ namespace Serialize.OpenXml.CodeGen
 
             var result = new CodeStatementCollection();
             var partType = part.OpenXmlPart.GetType();
-            var partTypeName = partType.Name;
-            var partTypeFullName = partType.FullName;
-            string varName = partType.Name.ToCamelCase();
-            bool customAddNewPartRequired = CheckForCustomAddNewPartMethod(partType, rootVar.Value, out string addNewPartName);
-
-#pragma warning disable IDE0018 // Inline variable declaration
-            OpenXmlPartBluePrint bpTemp;
-#pragma warning restore IDE0018 // Inline variable declaration
 
             CodeMethodReferenceExpression referenceExpression;
             CodeMethodInvokeExpression invokeExpression;
@@ -129,7 +121,7 @@ namespace Serialize.OpenXml.CodeGen
             // If the URI of the current part has already been included into
             // the blue prints collection, build the AddPart invocation
             // code statement and exit current method iteration.
-            if (blueprints.TryGetValue(part.OpenXmlPart.Uri, out bpTemp))
+            if (blueprints.TryGetValue(part.OpenXmlPart.Uri, out OpenXmlPartBluePrint bpTemp))
             {
                 // Surround this snippet with blank lines to make it
                 // stand out in the current section of code.
@@ -144,6 +136,10 @@ namespace Serialize.OpenXml.CodeGen
                 result.AddBlankLine();
                 return result;
             }
+
+            var partTypeName = partType.Name;
+            var partTypeFullName = partType.FullName;
+            string varName = partType.Name.ToCamelCase();
 
             // Assign the appropriate variable name
             if (typeCounts.ContainsKey(partTypeFullName))
@@ -161,41 +157,15 @@ namespace Serialize.OpenXml.CodeGen
             // Need to evaluate the current OpenXmlPart type first to make sure the
             // correct "Add" statement is used as not all Parts can be initialized
             // using the "AddNewPart" method
-
-            // Check for image part methods
-            if (customAddNewPartRequired)
-            {
-                referenceExpression = new CodeMethodReferenceExpression(
-                    new CodeVariableReferenceExpression(rootVar.Key), addNewPartName);
-            }
-            else
-            {
-                // Setup the add new part statement for the current OpenXmlPart object
-                referenceExpression = new CodeMethodReferenceExpression(
-                    new CodeVariableReferenceExpression(rootVar.Key), "AddNewPart",
-                    new CodeTypeReference(partTypeName));
-            }
-
-            // Create the invoke expression
-            invokeExpression = new CodeMethodInvokeExpression(referenceExpression);
-
-            // Add content type to invoke method for embeddedpackage and image parts.
-            if (part.OpenXmlPart is EmbeddedPackagePart || customAddNewPartRequired)
-            {
-                invokeExpression.Parameters.Add(
-                    new CodePrimitiveExpression(part.OpenXmlPart.ContentType));
-            }
-            else if (!customAddNewPartRequired)
-            {
-                invokeExpression.Parameters.Add(
-                    new CodePrimitiveExpression(part.RelationshipId));
-            }
+            var addNewPartExpressions = CreateAddNewPartMethod(part, rootVar);
+            referenceExpression = addNewPartExpressions.Item1;
+            invokeExpression = addNewPartExpressions.Item2;
 
             result.Add(new CodeVariableDeclarationStatement(partTypeName, varName, invokeExpression));
 
             // Because the custom AddNewPart methods don't consistently take in a string relId
             // as a parameter, the id needs to be assigned after it is created.
-            if (customAddNewPartRequired)
+            if (addNewPartExpressions.Item3)
             {
                 methodReference = new CodeMethodReferenceExpression(
                     new CodeVariableReferenceExpression(rootVar.Key), "ChangeIdOfPart");
@@ -744,36 +714,71 @@ namespace Serialize.OpenXml.CodeGen
         #region Private Static Methods
 
         /// <summary>
-        /// Checks to see if a given <see cref="OpenXmlPart"/> object requires a custom
-        /// AddNewPart method to initialize.
+        /// Constructs the appropriate <see cref="CodeMethodReferenceExpression"/> and
+        /// <see cref="CodeMethodInvokeExpression"/> objects for adding new parts
+        /// to an existing <see cref="OpenXmlPart"/> object.
         /// </summary>
-        /// <param name="pType">
-        /// The <see cref="OpenXmlPart"/> type of the object that is being added/constructed.
+        /// <param name="part">
+        /// The <see cref="OpenXmlPart"/> object and relationship id to build
+        /// the code expressions for.
         /// </param>
-        /// <param name="rootType">
-        /// The parent <see cref="OpenXmlPart"/> type adding the <paramref name="pType"/> type.
-        /// </param>
-        /// <param name="addMethodName">
-        /// The name of the method to use when adding <paramref name="pType"/> type to
-        /// <paramref name="rootType"/> type.
+        /// <param name="rootVar">
+        /// The root variable name and <see cref="Type"/> to use when building code
+        /// statements to create new <see cref="OpenXmlPart"/> objects.
         /// </param>
         /// <returns>
-        /// <see langword="true"/> if <paramref name="pType"/> requires a custom AddNewPart method
-        /// to initialize; otherwise <see langword="false"/>
+        /// A tuple containing the AddNewPart code expressions.
         /// </returns>
-        private static bool CheckForCustomAddNewPartMethod(Type pType, Type rootType, out string addMethodName)
+        private static (CodeMethodReferenceExpression, CodeMethodInvokeExpression, bool) CreateAddNewPartMethod(
+            IdPartPair part, KeyValuePair<string, Type> rootVar)
         {
+            CodeMethodReferenceExpression item1 = null;
+            CodeMethodInvokeExpression item2 = null;
+            var pType = part.OpenXmlPart.GetType();
             var checkName = $"Add{pType.Name}";
             bool check(MethodInfo m) => m.Name.Equals(checkName, StringComparison.OrdinalIgnoreCase);
+            var methods = rootVar.Value.GetMethods().Where(check).ToArray();
 
-            if (rootType.GetMethods().Count(check) <= 0)
+            // If no custom AddNewPart methods exist for the requested part, revert back to
+            // the default AddNewPart method.
+            if (methods.Length == 0)
             {
-                addMethodName = null;
-                return false;
+                item1 = new CodeMethodReferenceExpression(
+                    new CodeVariableReferenceExpression(rootVar.Key), "AddNewPart",
+                    new CodeTypeReference(pType.Name));
+                item2 = new CodeMethodInvokeExpression(item1);
+                item2.Parameters.Add(new CodePrimitiveExpression(part.RelationshipId));
+
+                return (item1, item2, false);
             }
 
-            addMethodName = checkName;
-            return true;
+            // Initialize the custom AddNewPart method reference and invoke expresstions
+            // before examining the method parameters
+            item1 = new CodeMethodReferenceExpression(
+                new CodeVariableReferenceExpression(rootVar.Key), checkName);
+            item2 = new CodeMethodInvokeExpression(item1);
+
+            // Now figure out what parameters are needed for this method
+            ParameterInfo[] parameters;
+            foreach (var m in methods)
+            {
+                // Please Note: To my knowledge, the custom AddNewPart methods have 2 main
+                // types of method parameters common among all custom methods:
+                // * Default (no parameters)
+                // * string contentType
+                // This loop should be looking for the second type primarily and reverting
+                // to the first type if not found.
+                parameters = m.GetParameters();
+
+                // Methods with 1 string parameter should be the contentType parameter method
+                if (parameters != null && parameters.Length == 1 && parameters[0].ParameterType == typeof(string))
+                {
+                    item2.Parameters.Add(
+                        new CodePrimitiveExpression(part.OpenXmlPart.ContentType));
+                    break;
+                }
+            }
+            return (item1, item2, true);
         }
 
         #endregion
