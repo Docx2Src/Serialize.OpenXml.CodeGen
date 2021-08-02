@@ -89,7 +89,13 @@ namespace Serialize.OpenXml.CodeGen.Extentions
                 {"DocumentFormat.OpenXml.Office2013.WebExtension", "WE"},
                 {"DocumentFormat.OpenXml.Office2013.WebExtentionPane", "WETP"},
                 {"DocumentFormat.OpenXml.Office2013.Word", "W15"},
-                {"DocumentFormat.OpenXml.Office2013.Word.Drawing", "WP15"}
+                {"DocumentFormat.OpenXml.Office2013.Word.Drawing", "WP15"},
+                {"DocumentFormat.OpenXml.Office2016.Drawing", "A16"},
+                {"DocumentFormat.OpenXml.Math", "M"},
+                {"DocumentFormat.OpenXml.Vml", "V"},
+                {"DocumentFormat.OpenXml.Vml.Office", "O"},
+                {"DocumentFormat.OpenXml.Vml.Wordprocessing", "W"},
+                {"DocumentFormat.OpenXml.Office2019.Drawing", "ADEC"}
             };
 
             // Now setup the simple type collection.
