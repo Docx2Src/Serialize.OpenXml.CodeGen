@@ -158,7 +158,7 @@ namespace Serialize.OpenXml.CodeGen
             // correct "Add" statement is used as not all Parts can be initialized
             // using the "AddNewPart" method
             var addNewPartExpressions = CreateAddNewPartMethod(part, rootVar);
-            referenceExpression = addNewPartExpressions.Item1;
+            // referenceExpression = addNewPartExpressions.Item1;
             invokeExpression = addNewPartExpressions.Item2;
 
             result.Add(new CodeVariableDeclarationStatement(partTypeName, varName, invokeExpression));
@@ -627,7 +627,7 @@ namespace Serialize.OpenXml.CodeGen
             {
                 codeNameSpaces.Add(ns.GetCodeNamespaceImport(settings.NamespaceAliasOptions));
             }
-            codeNameSpaces.Sort(new CodeNamespaceImportComparer());
+            codeNameSpaces.Sort(new CodeNamespaceImportComparer(settings.NamespaceAliasOptions));
 
             mainNamespace.Imports.AddRange(codeNameSpaces.ToArray());
             mainNamespace.Types.Add(mainClass);

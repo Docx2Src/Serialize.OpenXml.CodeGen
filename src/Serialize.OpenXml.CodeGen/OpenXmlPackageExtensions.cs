@@ -315,7 +315,7 @@ namespace Serialize.OpenXml.CodeGen
             {
                 codeNameSpaces.Add(ns.GetCodeNamespaceImport(settings.NamespaceAliasOptions));
             }
-            codeNameSpaces.Sort(new CodeNamespaceImportComparer());
+            codeNameSpaces.Sort(new CodeNamespaceImportComparer(settings.NamespaceAliasOptions));
 
             mainNamespace.Imports.AddRange(codeNameSpaces.ToArray());
             mainNamespace.Types.Add(mainClass);

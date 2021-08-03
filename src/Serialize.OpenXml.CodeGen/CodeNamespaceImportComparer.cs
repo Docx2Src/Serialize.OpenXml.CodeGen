@@ -42,18 +42,51 @@ namespace Serialize.OpenXml.CodeGen
 
         #endregion
 
+        #region Private Instance Fields
+
+        /// <summary>
+        /// Holds the <see cref="NamespaceAliasOptions"/> object to use when comparing.
+        /// </summary>
+        private readonly NamespaceAliasOptions _opts;
+
+        #endregion
+
+        #region Public Constructors
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="CodeNamespaceImportComparer"/>
+        /// class with the <see cref="NamespaceAliasOptions"/> object of the current
+        /// request.
+        /// </summary>
+        /// <param name="options">
+        /// The <see cref="NamespaceAliasOptions"/> object to use when comparing.
+        /// </param>
+        public CodeNamespaceImportComparer(NamespaceAliasOptions options)
+        {
+            _opts = options ?? throw new ArgumentNullException(nameof(options));
+        }
+
+        #endregion
+
         #region Public Instance Methods
 
         /// <inheritdoc/>
         public override int Compare(CodeNamespaceImport x, CodeNamespaceImport y)
         {
-            if (x.Namespace.Contains("=") && !y.Namespace.Contains("="))
+            // Check to make sure that either both CodeNamespaceImport objects
+            // have the assignment operator or both do not have one.
+            if (!String.IsNullOrWhiteSpace(_opts.AssignmentOperator))
             {
-                return 1;
-            }
-            if (!x.Namespace.Contains("=") && y.Namespace.Contains("="))
-            {
-                return -1;
+                if (x.Namespace.Contains(_opts.AssignmentOperator) &&
+                    !y.Namespace.Contains(_opts.AssignmentOperator))
+                {
+                    return 1;
+                }
+                if (!x.Namespace.Contains(_opts.AssignmentOperator) &&
+                    y.Namespace.Contains(_opts.AssignmentOperator))
+                {
+                    return -1;
+                }
             }
 
             // Check the namespace name first.
