@@ -5,12 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [0.4.1-beta] - TBD
+
+### Changed
+- Refactored the using directive generation logic to better match how the OpenXML SDK
+  Productivity Tool used to create them.  Using directive aliases are now dynamically
+  generated based on the OpenXml object that the code output is based on.
+- *\[Breaking Change\]:* Updated the `namespace` parameter type in the `IOpenXmlElementHandler`
+  and `IOpenXmlPartHandler` interface methods from `ISet<string>` to `IDictionary<string, string>` 
+  to account for the new namespace/using directive generation logic.  The following 
+  interface methods are impacted:
+  - `IOpenXmlElementHandler.BuildCodeStatements(...)`
+  - `IOpenXmlPartHandler.BuildEntryMethodCodeStatements(...)`
+  - `IOpenXmlPartHandler.BuildHelperMethod(...)`
+
 ## [0.4.0-beta] - 2021-08-02
 
 ### Added
 
-- New `ISerializeSettings` interface to allow greater flexibility in the source code generation.
-- New `IOpenXmlHandler` interface that allow developers to control how source code is created.
+- New `ISerializeSettings` interface to allows greater flexibility in the source code generation.
+- New `IOpenXmlHandler`, `IOpenXmlElementHandler`, and `IOpenXmlPartHandler` interfaces that will 
+  allow developers to control how source code is created.
 
 ### Changed
 

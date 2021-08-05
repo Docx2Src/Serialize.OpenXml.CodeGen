@@ -97,7 +97,7 @@ namespace Serialize.OpenXml.CodeGen
             var pkgType = pkg.GetType();
             var pkgTypeName = pkgType.Name;
             var partTypeCounts = new Dictionary<string, int>();
-            var namespaces = new SortedSet<string>();
+            var namespaces = new Dictionary<string, string>();
             var mainNamespace = new CodeNamespace(settings.NamespaceName);
             var bluePrints = new OpenXmlPartBluePrintCollection();
             CodeConditionStatement conditionStatement;
@@ -111,7 +111,13 @@ namespace Serialize.OpenXml.CodeGen
             KeyValuePair<string, Type> rootVarType;
 
             // Add all initial namespace names first
-            namespaces.Add("System");
+            if (!namespaces.ContainsKey("System"))
+            {
+                // Adding system first because the entry point for
+                // packages has a string parameter that does not use
+                // the 'string' keyword.
+                namespaces.Add("System", String.Empty);
+            }
 
             // The OpenXmlDocument derived parts all contain a property called "DocumentType"
             // but the property types differ depending on the derived part.  Need to get both
@@ -151,10 +157,15 @@ namespace Serialize.OpenXml.CodeGen
             // Add the required DocumentType parameter here, if available
             if (docTypeEnum != null)
             {
-                namespaces.Add(docTypeEnum.Namespace);
+                if (!namespaces.ContainsKey(docTypeEnum.Namespace))
+                {
+                    // All OpenXmlPackage objects are in the DocumentFormat.OpenXml.Packaging
+                    // namespace so there shouldn't be any collisions here.
+                    namespaces.Add(docTypeEnum.Namespace, String.Empty);
+                }
 
                 var simpleFieldRef = new CodeVariableReferenceExpression(
-                    docTypeEnum.GetObjectTypeName(settings.NamespaceAliasOptions.Order));
+                    docTypeEnum.GetObjectTypeName(namespaces, settings.NamespaceAliasOptions.Order));
                 docTypeVarRef = new CodeFieldReferenceExpression(simpleFieldRef, docTypeEnumVal);
             }
 
@@ -236,7 +247,12 @@ namespace Serialize.OpenXml.CodeGen
                     currentPartType = pair.OpenXmlPart.GetType();
                     if (customNewPartTypes.Contains(currentPartType))
                     {
-                        namespaces.Add(currentPartType.Namespace);
+                        if (!namespaces.ContainsKey(currentPartType.Namespace))
+                        {
+                            // All OpenXmlPart objects are in the DocumentFormat.OpenXml.Packaging
+                            // namespace so there shouldn't be any collisions here.
+                            namespaces.Add(currentPartType.Namespace, String.Empty);
+                        }
                         mainPartTypeName = currentPartType.Name;
                         if (pair.OpenXmlPart is PresentationPart)
                         {
@@ -313,7 +329,15 @@ namespace Serialize.OpenXml.CodeGen
             var codeNameSpaces = new List<CodeNamespaceImport>(namespaces.Count);
             foreach (var ns in namespaces)
             {
-                codeNameSpaces.Add(ns.GetCodeNamespaceImport(settings.NamespaceAliasOptions));
+                if (!String.IsNullOrWhiteSpace(ns.Value))
+                {
+                    codeNameSpaces.Add(settings.NamespaceAliasOptions.BuildNamespaceImport(
+                        ns.Key, ns.Value));
+                }
+                else
+                {
+                    codeNameSpaces.Add(new CodeNamespaceImport(ns.Key));
+                }
             }
             codeNameSpaces.Sort(new CodeNamespaceImportComparer(settings.NamespaceAliasOptions));
 

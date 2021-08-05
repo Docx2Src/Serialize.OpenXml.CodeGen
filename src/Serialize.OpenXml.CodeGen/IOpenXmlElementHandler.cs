@@ -53,8 +53,8 @@ namespace Serialize.OpenXml.CodeGen
         /// purposes.
         /// </param>
         /// <param name="namespaces">
-        /// Collection <see cref="ISet{T}"/> used to keep track of all openxml namespaces
-        /// used during the process.
+        /// Collection <see cref="IDictionary{TKey, TValue}"/> used to keep track of all
+        /// openxml namespaces used during the process.
         /// </param>
         /// <param name="elementName">
         /// The variable name of the root <see cref="OpenXmlElement"/> object that was built
@@ -72,7 +72,7 @@ namespace Serialize.OpenXml.CodeGen
             OpenXmlElement element,
             ISerializeSettings settings,
             IDictionary<Type, int> typeCounts,
-            ISet<string> namespaces,
+            IDictionary<string, string> namespaces,
             out string elementName);
 
         #endregion

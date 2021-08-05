@@ -38,30 +38,6 @@ namespace Serialize.OpenXml.CodeGen.Extentions
         #region Public Static Methods
 
         /// <summary>
-        /// Builds a new <see cref="CodeNamespaceImport"/> object based on the
-        /// namespace of <paramref name="ns"/>.
-        /// </summary>
-        /// <param name="ns">
-        /// The <see cref="String"/> namespace name.
-        /// </param>
-        /// <param name="options">
-        /// The <see name="NamespaceAliasOptions"/> object to generate the
-        /// <see cref="CodeNamespaceImport"/> object with.
-        /// </param>
-        /// <returns>
-        /// A new <see cref="CodeNamespaceImport"/> for the specified type.
-        /// </returns>
-        public static CodeNamespaceImport GetCodeNamespaceImport(this string ns, NamespaceAliasOptions options)
-        {
-            if (TypeExtensions.NamespaceAliases.ContainsKey(ns))
-            {
-                return options.BuildNamespaceImport(ns, 
-                    TypeExtensions.NamespaceAliases[ns]);
-            }
-            return new CodeNamespaceImport(ns);
-        }
-
-        /// <summary>
         /// Strips out the standard header text that is included when a
         /// <see href="https://docs.microsoft.com/en-us/dotnet/api/system.codedom.compiler.codedomprovider"/> 
         /// derived class

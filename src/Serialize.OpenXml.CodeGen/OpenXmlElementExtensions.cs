@@ -56,7 +56,7 @@ namespace Serialize.OpenXml.CodeGen
         /// purposes.
         /// </param>
         /// <param name="namespaces">
-        /// Collection <see cref="ISet{T}"/> used to keep track of all openxml namespaces
+        /// Collection <see cref="IDictionary{TKey, TValue}"/> used to keep track of all openxml namespaces
         /// used during the process.
         /// </param>
         /// <param name="elementName">
@@ -71,7 +71,7 @@ namespace Serialize.OpenXml.CodeGen
             this OpenXmlElement e,
             ISerializeSettings settings,
             IDictionary<Type, int> typeCounts,
-            ISet<string> namespaces,
+            IDictionary<string, string> namespaces,
             out string elementName)
         {
             // argument validation
@@ -122,8 +122,19 @@ namespace Serialize.OpenXml.CodeGen
                 }
             }
 
+            // Add the current element type namespace to the set object
+            if (!namespaces.ContainsKey(elementType.Namespace))
+            {
+                string tmpAlias = String.Empty;
+                if (elementType.ExistsInDifferentNamespace(namespaces))
+                {
+                    tmpAlias = e.Prefix.ToUpperInvariant();
+                }
+                namespaces.Add(elementType.Namespace, tmpAlias);
+            }
+
             // Build the initializer for the current element
-            elementName = elementType.GenerateVariableName(typeCounts);
+            elementName = elementType.GenerateVariableName(typeCounts, namespaces);
 
             CodeStatement statement;
             CodeObjectCreateExpression createExpression;
@@ -172,9 +183,6 @@ namespace Serialize.OpenXml.CodeGen
                     rValExp);
             }
 
-            // Add the current element type namespace to the set object
-            namespaces.Add(elementType.Namespace);
-
             // Need to build the non enumvalue complex objects first before assigning
             // them as properties of the current element
             foreach (var complex in cProperties)
@@ -186,13 +194,17 @@ namespace Serialize.OpenXml.CodeGen
                 if (val is null) continue;
 
                 // Add the complex property namespace to the set
-                namespaces.Add(complex.PropertyType.Namespace);
+                if (!namespaces.ContainsKey(complex.PropertyType.Namespace))
+                {
+                    _ = complex.PropertyType.ExistsInDifferentNamespace(namespaces, out string tmpAlias);
+                    namespaces.Add(complex.PropertyType.Namespace, tmpAlias);
+                }
 
                 // Use the junk var to store the property type name
                 junk = complex.PropertyType.Name;
 
                 // Build the variable name
-                simpleName = complex.PropertyType.GenerateVariableName(typeCounts);
+                simpleName = complex.PropertyType.GenerateVariableName(typeCounts, namespaces);
 
                 // Need to handle the generic properties special when trying
                 // to build a variable name.
@@ -232,7 +244,7 @@ namespace Serialize.OpenXml.CodeGen
             {
                 tmpType = e.MCAttributes.GetType();
 
-                simpleName = tmpType.GenerateVariableName(typeCounts);
+                simpleName = tmpType.GenerateVariableName(typeCounts, namespaces);
 
                 createExpression = new CodeObjectCreateExpression(tmpType.Name);
                 statement = new CodeVariableDeclarationStatement(tmpType.Name, simpleName, createExpression);
@@ -256,7 +268,7 @@ namespace Serialize.OpenXml.CodeGen
 
             // Include the alias prefix if the current element belongs to a class
             // within the namespaces identified to needing an alias
-            junk = elementType.GetObjectTypeName(settings.NamespaceAliasOptions.Order);
+            junk = elementType.GetObjectTypeName(namespaces, settings.NamespaceAliasOptions.Order);
             createExpression = new CodeObjectCreateExpression(junk);
 
             // OpenXmlUknownElement objects require the calling of custom constructors
@@ -312,7 +324,11 @@ namespace Serialize.OpenXml.CodeGen
                 if (val == null) continue;
 
                 // Add the simple property type namespace to the set
-                namespaces.Add(p.PropertyType.Namespace);
+                if (!namespaces.ContainsKey(p.PropertyType.Namespace))
+                {
+                    _ = p.PropertyType.ExistsInDifferentNamespace(namespaces, out string tmpAlias);
+                    namespaces.Add(p.PropertyType.Namespace, tmpAlias);
+                }
 
                 tmpSimpleType = val as OpenXmlSimpleType;
 
@@ -355,10 +371,14 @@ namespace Serialize.OpenXml.CodeGen
                 if (val is null) continue;
 
                 pi = cp.PropertyType.GetProperty("Value");
-                simpleName = pi.PropertyType.GetObjectTypeName(settings.NamespaceAliasOptions.Order);
+                simpleName = pi.PropertyType.GetObjectTypeName(namespaces, settings.NamespaceAliasOptions.Order);
 
                 // Add the simple property type namespace to the set
-                namespaces.Add(pi.PropertyType.Namespace);
+                if (!namespaces.ContainsKey(pi.PropertyType.Namespace))
+                {
+                    _ = pi.PropertyType.ExistsInDifferentNamespace(namespaces, out string tmpAlias);
+                    namespaces.Add(pi.PropertyType.Namespace, tmpAlias);
+                }
 
                 handleFmtException = (eName) =>
                     new CodeCommentStatement(
@@ -483,17 +503,18 @@ namespace Serialize.OpenXml.CodeGen
             var result = new CodeCompileUnit();
             var eType = element.GetType();
             var typeCounts = new Dictionary<Type, int>();
-            var namespaces = new SortedSet<string>();
+            var namespaces = new Dictionary<string, string>();
             var mainNamespace = new CodeNamespace(settings.NamespaceName);
+            var methodStatements = element.BuildCodeStatements(settings, typeCounts, namespaces, out string tmpName);
 
             // Setup the main method
             var mainMethod = new CodeMemberMethod()
             {
                 Name = $"Build{eType.Name}",
-                ReturnType = new CodeTypeReference(eType.GetObjectTypeName(settings.NamespaceAliasOptions.Order)),
+                ReturnType = new CodeTypeReference(eType.GetObjectTypeName(namespaces, settings.NamespaceAliasOptions.Order)),
                 Attributes = MemberAttributes.Public | MemberAttributes.Final
             };
-            mainMethod.Statements.AddRange(element.BuildCodeStatements(settings, typeCounts, namespaces, out string tmpName));
+            mainMethod.Statements.AddRange(methodStatements);
             mainMethod.Statements.Add(new CodeMethodReturnStatement(new CodeVariableReferenceExpression(tmpName)));
 
             // Setup the main class next
@@ -508,7 +529,15 @@ namespace Serialize.OpenXml.CodeGen
             var codeNameSpaces = new List<CodeNamespaceImport>(namespaces.Count);
             foreach (var ns in namespaces)
             {
-                codeNameSpaces.Add(ns.GetCodeNamespaceImport(settings.NamespaceAliasOptions));
+                if (!String.IsNullOrWhiteSpace(ns.Value))
+                {
+                    codeNameSpaces.Add(settings.NamespaceAliasOptions.BuildNamespaceImport(
+                        ns.Key, ns.Value));
+                }
+                else
+                {
+                    codeNameSpaces.Add(new CodeNamespaceImport(ns.Key));
+                }
             }
             codeNameSpaces.Sort(new CodeNamespaceImportComparer(settings.NamespaceAliasOptions));
 

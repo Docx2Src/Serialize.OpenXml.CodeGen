@@ -44,60 +44,6 @@ namespace Serialize.OpenXml.CodeGen.Extentions
         /// </summary>
         static TypeExtensions()
         {
-            // Setup the namespace alias collection
-            NamespaceAliases = new Dictionary<string, string>(StringComparer.Ordinal)
-            {                
-                {"DocumentFormat.OpenXml.ExtendedProperties", "AP"},
-                {"DocumentFormat.OpenXml.VariantTypes", "VT"},
-                {"DocumentFormat.OpenXml.CustomProperties", "OP"},
-                {"DocumentFormat.OpenXml.Drawing", "A"},
-                {"DocumentFormat.OpenXml.Drawing.ChartDrawing", "CDR"},
-                {"DocumentFormat.OpenXml.Drawing.Charts", "C"},
-                {"DocumentFormat.OpenXml.Drawing.Diagrams", "DGM"},
-                {"DocumentFormat.OpenXml.Drawing.LegacyCompatibility", "COMP"},
-                {"DocumentFormat.OpenXml.Drawing.LockedCanvas", "LC"},
-                {"DocumentFormat.OpenXml.Drawing.Pictures", "PIC"},
-                {"DocumentFormat.OpenXml.Drawing.Spreadsheet", "XDR"},
-                {"DocumentFormat.OpenXml.Drawing.Wordprocessing", "WP"},
-                {"DocumentFormat.OpenXml.Office2010.CustomUI", "MSO14"},
-                {"DocumentFormat.OpenXml.Office2010.Drawing", "A14"},
-                {"DocumentFormat.OpenXml.Office2010.Drawing.ChartDrawing", "CDR14"},
-                {"DocumentFormat.OpenXml.Office2010.Drawing.Charts", "C14"},
-                {"DocumentFormat.OpenXml.Office2010.Drawing.Diagram", "DGM14"},
-                {"DocumentFormat.OpenXml.Office2010.Drawing.LegacyCompatibility", "COM14"},
-                {"DocumentFormat.OpenXml.Office2010.Drawing.Pictures", "PIC14"},
-                {"DocumentFormat.OpenXml.Office2010.Drawing.Slicer", "SLE"},
-                {"DocumentFormat.OpenXml.Office2010.Excel", "X14"},
-                {"DocumentFormat.OpenXml.Office2010.Excel.Drawing", "XDR14"},
-                {"DocumentFormat.OpenXml.Office2010.ExcelAc", "X12AC"},
-                {"DocumentFormat.OpenXml.Office2010.Ink", "MSINK"},
-                {"DocumentFormat.OpenXml.Office2010.PowerPoint", "P14"},
-                {"DocumentFormat.OpenXml.Office2010.Word", "W14"},
-                {"DocumentFormat.OpenXml.Office2010.Word.Drawing", "WP14"},
-                {"DocumentFormat.OpenXml.Office2010.Word.DrawingCanvas", "WPC"},
-                {"DocumentFormat.OpenXml.Office2010.Word.DrawingGroup", "WPG"},
-                {"DocumentFormat.OpenXml.Office2010.Word.DrawingShape", "WPS"},
-                {"DocumentFormat.OpenXml.Office2013.Drawing", "A15"},
-                {"DocumentFormat.OpenXml.Office2013.Drawing.Chart", "C15"},
-                {"DocumentFormat.OpenXml.Office2013.Drawing.ChartStyle", "CS"},
-                {"DocumentFormat.OpenXml.Office2013.Drawing.TimeSlicer", "TSLE"},
-                {"DocumentFormat.OpenXml.Office2013.Excel", "X15"},
-                {"DocumentFormat.OpenXml.Office2013.ExcelAc", "X15AC"},
-                {"DocumentFormat.OpenXml.Office2013.PowerPoint", "P15"},
-                {"DocumentFormat.OpenXml.Office2013.PowerPoint.Roaming", "PROAM"},
-                {"DocumentFormat.OpenXml.Office2013.Theme", "THM15"},
-                {"DocumentFormat.OpenXml.Office2013.WebExtension", "WE"},
-                {"DocumentFormat.OpenXml.Office2013.WebExtentionPane", "WETP"},
-                {"DocumentFormat.OpenXml.Office2013.Word", "W15"},
-                {"DocumentFormat.OpenXml.Office2013.Word.Drawing", "WP15"},
-                {"DocumentFormat.OpenXml.Office2016.Drawing", "A16"},
-                {"DocumentFormat.OpenXml.Math", "M"},
-                {"DocumentFormat.OpenXml.Vml", "V"},
-                {"DocumentFormat.OpenXml.Vml.Office", "O"},
-                {"DocumentFormat.OpenXml.Vml.Wordprocessing", "W"},
-                {"DocumentFormat.OpenXml.Office2019.Drawing", "ADEC"}
-            };
-
             // Now setup the simple type collection.
             var simpleTypes = new Type[]
             {
@@ -125,12 +71,6 @@ namespace Serialize.OpenXml.CodeGen.Extentions
         #region Public Static Properties
 
         /// <summary>
-        /// Gets the collection of OpenXml namespaces and their corrisponding
-        /// import aliases.
-        /// </summary>
-        public static IReadOnlyDictionary<string, string> NamespaceAliases { get; private set; }
-
-        /// <summary>
         /// Gets a collection of <see cref="OpenXmlSimpleValue{T}"/> based types.
         /// </summary>
         /// <remarks>
@@ -144,6 +84,198 @@ namespace Serialize.OpenXml.CodeGen.Extentions
         #region Public Static methods
 
         /// <summary>
+        /// Checks to see if a <see cref="Type"/> exists in a different namespace.
+        /// </summary>
+        /// <param name="t">
+        /// The <see cref="Type"/> with the name to search for.
+        /// </param>
+        /// <param name="namespaces">
+        /// The <see cref="IDictionary{TKey, TValue}"/> of collected namespaces
+        /// to search in.
+        /// </param>
+        /// <returns>
+        /// <see langword="true"/> if <paramref name="t"/> exists in a different
+        /// namespace; otherwise, <see langword="false"/>.
+        /// </returns>
+        public static bool ExistsInDifferentNamespace(this Type t,
+            IDictionary<string, string> namespaces)
+        {
+            if (namespaces is null) throw new ArgumentNullException(nameof(namespaces));
+            if (namespaces.Count == 0) return false;
+
+            Type tmp;
+            bool foundElsewhere = false;
+            Type[] classes;
+            string tmpName;
+
+            bool getTypesWhere(Type c) =>
+                !String.IsNullOrEmpty(c.Namespace) &&
+                c.Namespace.Equals(t.Namespace, StringComparison.Ordinal);
+
+            foreach (var ns in namespaces)
+            {
+                // First scan for the actual type name in other existing
+                // namespaces
+                tmpName = $"{ns.Key}.{t.Name}";
+                tmp = t.Assembly.GetType(tmpName) ?? Type.GetType(tmpName);
+
+                if (tmp != null)
+                {
+                    foundElsewhere = true;
+                    break;
+                }
+            }
+
+            if (!foundElsewhere)
+            {
+                // Next, try to scan for other classes in the type's namespace
+                // in other namespaces
+                classes = Assembly.GetAssembly(t).GetTypes()
+                    .Where(getTypesWhere)
+                    .ToArray();
+
+                foreach (var ns in namespaces)
+                {
+                    foreach (var cl in classes)
+                    {
+                        tmpName = $"{ns.Key}.{cl.Name}";
+                        tmp = t.Assembly.GetType(tmpName) ?? Type.GetType(tmpName);
+
+                        if (tmp != null)
+                        {
+                            foundElsewhere = true;
+                            break;
+                        }
+                    }
+                    if (foundElsewhere) break;
+                }
+            }
+
+            return foundElsewhere;
+        }
+
+        /// <summary>
+        /// Checks to see if a <see cref="Type"/> exists in a different namespace.
+        /// </summary>
+        /// <param name="t">
+        /// The <see cref="Type"/> with the name to search for.
+        /// </param>
+        /// <param name="namespaces">
+        /// The <see cref="IDictionary{TKey, TValue}"/> of collected namespaces
+        /// to search in.
+        /// </param>
+        /// <param name="alias">
+        /// The namespace alias to use, if necessary.
+        /// </param>
+        /// <returns>
+        /// <see langword="true"/> if <paramref name="t"/> exists in a different
+        /// namespace; otherwise, <see langword="false"/>.
+        /// </returns>
+        public static bool ExistsInDifferentNamespace(this Type t,
+            IDictionary<string, string> namespaces, out string alias)
+        {
+            if (namespaces is null) throw new ArgumentNullException(nameof(namespaces));
+            if (namespaces.Count == 0)
+            {
+                alias = String.Empty;
+                return false;
+            }
+
+            Type tmp;
+            bool foundElsewhere = false;
+            Type[] classes;
+            string tmpName;
+            string al = String.Empty;
+
+            bool getTypesWhere(Type c) =>
+                !String.IsNullOrEmpty(c.Namespace) &&
+                c.Namespace.Equals(t.Namespace, StringComparison.Ordinal);
+
+            // Tries to find an alias to use for the specified type
+            string findAlias(Type c)
+            {
+                foundElsewhere = true;
+                string result = null;
+
+                // If the current type is a subclass of OpenXmlElement
+                // try to initialize it with a default constructor to
+                // get its prefix for the namespace alias
+                if (c.IsSubclassOf(typeof(OpenXmlElement)))
+                {
+                    var ctor = c.GetConstructor(Type.EmptyTypes);
+
+                    if (ctor != null)
+                    {
+                        var element = c.Assembly.CreateInstance(c.FullName) as OpenXmlElement;
+                        result = element.Prefix.ToUpperInvariant();
+                    }
+                }
+
+                // Create a new alias if the element prefix could not be located.
+                if (String.IsNullOrEmpty(result))
+                {
+                    var sb = new StringBuilder();
+                    var ns = c.Namespace;
+
+                    // Use only upper case or numeric characters from the
+                    // type's namespace as the new alias.
+                    for (int i = 0; i < ns.Length; i++)
+                    {
+                        if (Char.IsUpper(ns[i]) || Char.IsDigit(ns[i]))
+                        {
+                            sb.Append(ns[i]);
+                        }
+                    }
+                    result = sb.ToString();
+                }
+                return result;
+            }
+
+            foreach (var ns in namespaces)
+            {
+                // First scan for the actual type name in other existing
+                // namespaces
+                tmpName = $"{ns.Key}.{t.Name}";
+                tmp = t.Assembly.GetType(tmpName) ?? Type.GetType(tmpName);
+
+                if (tmp != null)
+                {
+                    al = findAlias(t);
+                    break;
+                }                
+            }
+
+            if (!foundElsewhere)
+            {
+                // Next, try to scan for other classes in the type's namespace
+                // in other namespaces
+                classes = Assembly.GetAssembly(t).GetTypes()
+                    .Where(getTypesWhere)
+                    .ToArray();
+
+                foreach (var ns in namespaces)
+                {
+                    foreach (var cl in classes)
+                    {
+                        tmpName = $"{ns.Key}.{cl.Name}";
+                        tmp = t.Assembly.GetType(tmpName) ?? Type.GetType(tmpName);
+
+
+                        if (tmp != null)
+                        {
+                            al = findAlias(cl);
+                            break;
+                        }
+                    }
+                    if (foundElsewhere) break;
+                }
+            }
+
+            alias = al;
+            return foundElsewhere;
+        }
+
+        /// <summary>
         /// Generates a variable name to use when generating the appropriate
         /// CodeDom objects for a given <see cref="Type"/>.
         /// </summary>
@@ -154,18 +286,26 @@ namespace Serialize.OpenXml.CodeGen.Extentions
         /// The <see cref="IDictionary{TKey, TValue}"/> object that tracks 
         /// the number of times a given type has been generated.
         /// </param>
+        /// <param name="namespaces">
+        /// Collection <see cref="IDictionary{TKey, TValue}"/> used to keep
+        /// track of all openxml namespaces used during the process.
+        /// </param>
         /// <returns>
         /// A new variable name to use to represent <paramref name="t"/>.
         /// </returns>
-        public static string GenerateVariableName(this Type t, IDictionary<Type, int> typeCount)
+        public static string GenerateVariableName(
+            this Type t,
+            IDictionary<Type, int> typeCount,
+            IDictionary<string, string> namespaces)
         {
             string tmp;  // Hold the generated name
             string nsPrefix = String.Empty;
 
             // Include the namespace alias as part of the variable name
-            if (NamespaceAliases.ContainsKey(t.Namespace))
+            if (namespaces.ContainsKey(t.Namespace) &&
+                !String.IsNullOrWhiteSpace(namespaces[t.Namespace]))
             {
-                nsPrefix = NamespaceAliases[t.Namespace].ToLowerInvariant();
+                nsPrefix = namespaces[t.Namespace].ToLowerInvariant();
             }
 
             // Simply return the generated name if the current
@@ -204,30 +344,15 @@ namespace Serialize.OpenXml.CodeGen.Extentions
         }
 
         /// <summary>
-        /// Builds a new <see cref="CodeNamespaceImport"/> object based on the
-        /// namespace of <paramref name="t"/>.
-        /// </summary>
-        /// <param name="t">
-        /// The <see cref="Type"/> object to get the namespace from.
-        /// </param>
-        /// <param name="options">
-        /// The <see name="NamespaceAliasOptions"/> object to generate the
-        /// <see cref="CodeNamespaceImport"/> object with.
-        /// </param>
-        /// <returns>
-        /// A new <see cref="CodeNamespaceImport"/> for the specified type.
-        /// </returns>
-        public static CodeNamespaceImport GetCodeNamespaceImport(this Type t, NamespaceAliasOptions options)
-        {
-            return t.Namespace.GetCodeNamespaceImport(options);
-        }
-
-        /// <summary>
         /// Creates a class name <see cref="String"/> to use when generating
         /// source code.
         /// </summary>
         /// <param name="t">
         /// The <see cref="Type"/> object containing the class name to evaluate.
+        /// </param>
+        /// <param name="namespaces">
+        /// Collection <see cref="IDictionary{TKey, TValue}"/> used to keep track of a
+        /// ll openxml namespaces used during the process.
         /// </param>
         /// <param name="order">
         /// The <see cref="NamespaceAliasOrder"/> value to evaluate when building the
@@ -237,12 +362,16 @@ namespace Serialize.OpenXml.CodeGen.Extentions
         /// The class name to use when building a new <see cref="CodeObjectCreateExpression"/>
         /// object.
         /// </returns>
-        public static string GetObjectTypeName(this Type t, NamespaceAliasOrder order)
+        public static string GetObjectTypeName(this Type t,
+            IDictionary<string, string> namespaces, NamespaceAliasOrder order)
         {
-            if (NamespaceAliases.ContainsKey(t.Namespace))
+            if (!namespaces.ContainsKey(t.Namespace) || order == NamespaceAliasOrder.None)
             {
-                return order == NamespaceAliasOrder.None ? t.FullName :
-                    $"{NamespaceAliases[t.Namespace]}.{t.Name}";
+                return t.FullName;
+            }
+            if (!String.IsNullOrWhiteSpace(namespaces[t.Namespace]))
+            {
+                return $"{namespaces[t.Namespace]}.{t.Name}";
             }
             return t.Name;
         }

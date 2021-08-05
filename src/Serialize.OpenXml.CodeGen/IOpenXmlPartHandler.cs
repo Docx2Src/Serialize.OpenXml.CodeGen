@@ -52,8 +52,8 @@ namespace Serialize.OpenXml.CodeGen
         /// purposes.
         /// </param>
         /// <param name="namespaces">
-        /// Collection <see cref="ISet{T}"/> used to keep track of all openxml namespaces
-        /// used during the process.
+        /// Collection <see cref="IDictionary{TKey, TValue}"/> used to keep track of all
+        /// openxml namespaces used during the process.
         /// </param>
         /// <param name="blueprints">
         /// The collection of <see cref="OpenXmlPartBluePrint"/> objects that have already been
@@ -75,7 +75,7 @@ namespace Serialize.OpenXml.CodeGen
             IdPartPair part,
             ISerializeSettings settings,
             IDictionary<string, int> typeCounts,
-            ISet<string> namespaces,
+            IDictionary<string, string> namespaces,
             OpenXmlPartBluePrintCollection blueprints,
             KeyValuePair<string, Type> rootVar);
 
@@ -93,8 +93,8 @@ namespace Serialize.OpenXml.CodeGen
         /// process.
         /// </param>
         /// <param name="namespaces">
-        /// Collection <see cref="ISet{T}"/> used to keep track of all openxml namespaces
-        /// used during the process.
+        /// Collection <see cref="IDictionary{TKey, TValue}"/> used to keep track of all
+        /// openxml namespaces used during the process.
         /// </param>
         /// <returns>
         /// A new <see cref="CodeMemberMethod"/> object containing the necessary source code
@@ -108,7 +108,7 @@ namespace Serialize.OpenXml.CodeGen
             OpenXmlPart part,
             string methodName,
             ISerializeSettings settings,
-            ISet<string> namespaces);
+            IDictionary<string, string> namespaces);
 
         #endregion
     }

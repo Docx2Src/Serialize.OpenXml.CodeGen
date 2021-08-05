@@ -66,8 +66,8 @@ namespace Serialize.OpenXml.CodeGen
         /// purposes.
         /// </param>
         /// <param name="namespaces">
-        /// Collection <see cref="ISet{T}"/> used to keep track of all openxml namespaces
-        /// used during the process.
+        /// Collection <see cref="IDictionary{TKey, TValue}"/> used to keep track of all openxml
+        /// namespaces used during the process.
         /// </param>
         /// <param name="blueprints">
         /// The collection of <see cref="OpenXmlPartBluePrint"/> objects that have already been
@@ -85,7 +85,7 @@ namespace Serialize.OpenXml.CodeGen
             IdPartPair part,
             ISerializeSettings settings,
             IDictionary<string, int> typeCounts,
-            ISet<string> namespaces,
+            IDictionary<string, string> namespaces,
             OpenXmlPartBluePrintCollection blueprints,
             KeyValuePair<string, Type> rootVar)
         {
@@ -116,7 +116,12 @@ namespace Serialize.OpenXml.CodeGen
             CodeMethodReferenceExpression methodReference;
 
             // Make sure that the namespace for the current part is captured
-            namespaces.Add(partType.Namespace);
+            if (!namespaces.ContainsKey(partType.Namespace))
+            {
+                // All OpenXmlPart objects are in the DocumentFormat.OpenXml.Packaging
+                // namespace so there shouldn't be any collisions here.
+                namespaces.Add(partType.Namespace, String.Empty);
+            }
 
             // If the URI of the current part has already been included into
             // the blue prints collection, build the AddPart invocation
@@ -263,7 +268,7 @@ namespace Serialize.OpenXml.CodeGen
         public static CodeTypeMemberCollection BuildHelperMethods(
             OpenXmlPartBluePrintCollection bluePrints,
             ISerializeSettings settings,
-            ISet<string> namespaces)
+            IDictionary<string, string> namespaces)
         {
             if (bluePrints == null) throw new ArgumentNullException(nameof(bluePrints));
             var result = new CodeTypeMemberCollection();
@@ -457,7 +462,7 @@ namespace Serialize.OpenXml.CodeGen
         /// that would regenerate <paramref name="part"/> using the
         /// <see cref="OpenXmlPart.FeedData(Stream)"/> method.
         /// </returns>
-        public static CodeStatementCollection BuildPartFeedData(this OpenXmlPart part, ISet<string> namespaces)
+        public static CodeStatementCollection BuildPartFeedData(this OpenXmlPart part, IDictionary<string, string> namespaces)
         {
             // Make sure no null values were passed.
             if (part == null) throw new ArgumentNullException(nameof(part));
@@ -471,8 +476,14 @@ namespace Serialize.OpenXml.CodeGen
             var result = new CodeStatementCollection();
 
             // Add the necessary namespaces by hand to the namespace set
-            namespaces.Add("System");
-            namespaces.Add("System.IO");
+            if (!namespaces.ContainsKey("System"))
+            {
+                namespaces.Add("System", String.Empty);
+            }
+            if (!namespaces.ContainsKey("System.IO"))
+            {
+                namespaces.Add("System.IO", String.Empty);
+            }
 
             using (var partStream = part.GetStream(FileMode.Open, FileAccess.Read))
             {
@@ -567,7 +578,7 @@ namespace Serialize.OpenXml.CodeGen
             var partTypeFullName = eType.FullName;
             var varName = eType.Name.ToCamelCase();
             var partTypeCounts = new Dictionary<string, int>();
-            var namespaces = new SortedSet<string>();
+            var namespaces = new Dictionary<string, string>();
             var mainNamespace = new CodeNamespace(settings.NamespaceName);
             var bluePrints = new OpenXmlPartBluePrintCollection();
 
@@ -625,7 +636,15 @@ namespace Serialize.OpenXml.CodeGen
             var codeNameSpaces = new List<CodeNamespaceImport>(namespaces.Count);
             foreach (var ns in namespaces)
             {
-                codeNameSpaces.Add(ns.GetCodeNamespaceImport(settings.NamespaceAliasOptions));
+                if (!String.IsNullOrWhiteSpace(ns.Value))
+                {
+                    codeNameSpaces.Add(settings.NamespaceAliasOptions.BuildNamespaceImport(
+                        ns.Key, ns.Value));
+                }
+                else
+                {
+                    codeNameSpaces.Add(new CodeNamespaceImport(ns.Key));
+                }
             }
             codeNameSpaces.Sort(new CodeNamespaceImportComparer(settings.NamespaceAliasOptions));
 
