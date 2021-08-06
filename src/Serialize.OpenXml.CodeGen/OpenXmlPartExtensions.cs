@@ -33,7 +33,7 @@ using System.Reflection;
 namespace Serialize.OpenXml.CodeGen
 {
     /// <summary>
-    /// Static class that converts <see cref="OpenXmlPart">OpenXmlParts</see>
+    /// Static class that converts <see cref="OpenXmlPart"/> objects
     /// into Code DOM objects.
     /// </summary>
     public static class OpenXmlPartExtensions
@@ -185,24 +185,12 @@ namespace Serialize.OpenXml.CodeGen
                 new CodeDirectionExpression(FieldDirection.Ref,
                     new CodeVariableReferenceExpression(varName))));
 
-            // Add the appropriate code statements if the current part
-            // contains any hyperlink relationships
-            if (part.OpenXmlPart.HyperlinkRelationships.Count() > 0)
-            {
-                // Add a line break first for easier reading
-                result.AddBlankLine();
-                result.AddRange(
-                    part.OpenXmlPart.HyperlinkRelationships.BuildHyperlinkRelationshipStatements(varName));
-            }
+            // Add the relationships, if applicable
+            var relCodeStatements = part.OpenXmlPart.GenerateRelationshipCodeStatements(varName);
 
-            // Add the appropriate code statements if the current part
-            // contains any non-hyperlink external relationships
-            if (part.OpenXmlPart.ExternalRelationships.Count() > 0)
+            if (relCodeStatements.Count > 0)
             {
-                // Add a line break first for easier reading
-                result.AddBlankLine();
-                result.AddRange(
-                    part.OpenXmlPart.ExternalRelationships.BuildExternalRelationshipStatements(varName));
+                result.AddRange(relCodeStatements);
             }
 
             // put a line break before going through the child parts
@@ -341,108 +329,6 @@ namespace Serialize.OpenXml.CodeGen
                 result.Add(method);
             }
 
-            return result;
-        }
-
-        /// <summary>
-        /// Creates a collection of code statements that describe how to add external relationships to
-        /// a <see cref="OpenXmlPartContainer"/> object.
-        /// </summary>
-        /// <param name="relationships">
-        /// The collection of <see cref="ExternalRelationship"/> objects to build the code statements for.
-        /// </param>
-        /// <param name="parentName">
-        /// The name of the <see cref="OpenXmlPartContainer"/> object that the external relationship
-        /// assignments should be for.
-        /// </param>
-        /// <returns>
-        /// A collection of code statements that could be used to generate and assign new
-        /// <see cref="ExternalRelationship"/> objects to a <see cref="OpenXmlPartContainer"/> object.
-        /// </returns>
-        public static CodeStatementCollection BuildExternalRelationshipStatements(
-            this IEnumerable<ExternalRelationship> relationships, string parentName)
-        {
-            if (String.IsNullOrWhiteSpace(parentName)) throw new ArgumentNullException(nameof(parentName));
-
-            var result = new CodeStatementCollection();
-
-            // Return an empty code statement collection if the hyperlinks parameter is empty.
-            if (relationships.Count() == 0) return result;
-
-            CodeObjectCreateExpression createExpression;
-            CodeMethodReferenceExpression methodReferenceExpression;
-            CodeMethodInvokeExpression invokeExpression;
-            CodePrimitiveExpression param;
-            CodeTypeReference typeReference;
-
-            foreach (var ex in relationships)
-            {
-                // Need special care to create the uri for the current object.
-                typeReference = new CodeTypeReference(ex.Uri.GetType());
-                param = new CodePrimitiveExpression(ex.Uri.ToString());
-                createExpression = new CodeObjectCreateExpression(typeReference, param);
-
-                // Create the AddHyperlinkRelationship statement
-                methodReferenceExpression = new CodeMethodReferenceExpression(
-                    new CodeVariableReferenceExpression(parentName),
-                    "AddExternalRelationship");
-                invokeExpression = new CodeMethodInvokeExpression(methodReferenceExpression,
-                    new CodePrimitiveExpression(ex.RelationshipType),
-                    createExpression,
-                    new CodePrimitiveExpression(ex.Id));
-                result.Add(invokeExpression);
-            }
-            return result;
-        }
-
-        /// <summary>
-        /// Creates a collection of code statements that describe how to add hyperlink relationships to
-        /// a <see cref="OpenXmlPartContainer"/> object.
-        /// </summary>
-        /// <param name="hyperlinks">
-        /// The collection of <see cref="HyperlinkRelationship"/> objects to build the code statements for.
-        /// </param>
-        /// <param name="parentName">
-        /// The name of the <see cref="OpenXmlPartContainer"/> object that the hyperlink relationship
-        /// assignments should be for.
-        /// </param>
-        /// <returns>
-        /// A collection of code statements that could be used to generate and assign new
-        /// <see cref="HyperlinkRelationship"/> objects to a <see cref="OpenXmlPartContainer"/> object.
-        /// </returns>
-        public static CodeStatementCollection BuildHyperlinkRelationshipStatements(
-            this IEnumerable<HyperlinkRelationship> hyperlinks, string parentName)
-        {
-            if (String.IsNullOrWhiteSpace(parentName)) throw new ArgumentNullException(nameof(parentName));
-
-            var result = new CodeStatementCollection();
-
-            // Return an empty code statement collection if the hyperlinks parameter is empty.
-            if (hyperlinks.Count() == 0) return result;
-
-            CodeObjectCreateExpression createExpression;
-            CodeMethodReferenceExpression methodReferenceExpression;
-            CodeMethodInvokeExpression invokeExpression;
-            CodePrimitiveExpression param;
-            CodeTypeReference typeReference;
-
-            foreach (var hl in hyperlinks)
-            {
-                // Need special care to create the uri for the current object.
-                typeReference = new CodeTypeReference(hl.Uri.GetType());
-                param = new CodePrimitiveExpression(hl.Uri.ToString());
-                createExpression = new CodeObjectCreateExpression(typeReference, param);
-
-                // Create the AddHyperlinkRelationship statement
-                methodReferenceExpression = new CodeMethodReferenceExpression(
-                    new CodeVariableReferenceExpression(parentName),
-                    "AddHyperlinkRelationship");
-                invokeExpression = new CodeMethodInvokeExpression(methodReferenceExpression,
-                    createExpression,
-                    new CodePrimitiveExpression(hl.IsExternal),
-                    new CodePrimitiveExpression(hl.Id));
-                result.Add(invokeExpression);
-            }
             return result;
         }
 
@@ -608,6 +494,12 @@ namespace Serialize.OpenXml.CodeGen
             entryMethod.Parameters.Add(
                 new CodeParameterDeclarationExpression(partTypeName, methodParamName)
                 { Direction = FieldDirection.Ref });
+
+            var relCodeStatements = part.GenerateRelationshipCodeStatements(new CodeThisReferenceExpression());
+            if (relCodeStatements.Count > 0)
+            {
+                entryMethod.Statements.AddRange(relCodeStatements);
+            }
 
             // Add all of the child part references here
             if (part.Parts != null)

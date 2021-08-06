@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   - `IOpenXmlElementHandler.BuildCodeStatements(...)`
   - `IOpenXmlPartHandler.BuildEntryMethodCodeStatements(...)`
   - `IOpenXmlPartHandler.BuildHelperMethod(...)`
+  
+### Fixed
+
+- Issue related to Hyperlink and external relationship references were not being added properly
+  in all `OpenXmlPart` code creation scenarios.
 
 ## [0.4.0-beta] - 2021-08-02
 

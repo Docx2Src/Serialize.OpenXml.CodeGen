@@ -106,6 +106,7 @@ namespace Serialize.OpenXml.CodeGen
             CodeTypeDeclaration mainClass;
             CodeTryCatchFinallyStatement tryAndCatch;
             CodeFieldReferenceExpression docTypeVarRef = null;
+            CodeStatementCollection relCodeStatements;
             Type docTypeEnum;
             string docTypeEnumVal;
             KeyValuePair<string, Type> rootVarType;
@@ -227,6 +228,12 @@ namespace Serialize.OpenXml.CodeGen
             createParts.Parameters.Add(new CodeParameterDeclarationExpression(pkgTypeName, pkgVarName)
                 { Direction = FieldDirection.Ref });
 
+            relCodeStatements = pkg.GenerateRelationshipCodeStatements(pkgVarName);
+            if (relCodeStatements.Count > 0)
+            {
+                createParts.Statements.AddRange(relCodeStatements);
+            }
+
             // Add all of the child part references here
             if (pkg.Parts != null)
             {
@@ -290,6 +297,12 @@ namespace Serialize.OpenXml.CodeGen
                         // Add the current main part to the collection of blueprints to ensure that the appropriate 'Generate*'
                         // method is added to the collection of helper methods.
                         bluePrints.Add(bpTemp);
+
+                        relCodeStatements = pair.OpenXmlPart.GenerateRelationshipCodeStatements(varName);
+                        if (relCodeStatements.Count > 0)
+                        {
+                            createParts.Statements.AddRange(relCodeStatements);
+                        }
 
                         // Add a blank line for clarity
                         createParts.Statements.AddBlankLine();
