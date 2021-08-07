@@ -271,6 +271,9 @@ namespace Serialize.OpenXml.CodeGen
             junk = elementType.GetObjectTypeName(namespaces, settings.NamespaceAliasOptions.Order);
             createExpression = new CodeObjectCreateExpression(junk);
 
+            /********************************************************************************
+             * Custom element constructors
+             ********************************************************************************/
             // OpenXmlUknownElement objects require the calling of custom constructors
             if (e is OpenXmlUnknownElement)
             {
@@ -279,6 +282,17 @@ namespace Serialize.OpenXml.CodeGen
                     new CodePrimitiveExpression(e.Prefix),
                     new CodePrimitiveExpression(e.LocalName),
                     new CodePrimitiveExpression(e.NamespaceUri)
+                });
+            }
+            // OpenXmlMiscNode classes do not have default constructors so
+            // use the constructor that provides the note type and outer
+            // xml values.
+            else if (e is OpenXmlMiscNode miscNode)
+            {
+                createExpression.Parameters.AddRange(new CodeExpression[]
+                {
+                    new CodePrimitiveExpression(miscNode.XmlNodeType),
+                    new CodePrimitiveExpression(miscNode.OuterXml)
                 });
             }
             // OpenXmlLeafTextElement classes have constructors that take in

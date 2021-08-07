@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Issue related to Hyperlink and external relationship references were not being added properly
   in all `OpenXmlPart` code creation scenarios.
+- Use the right constructor parameters for `OpenXmlMiscNode` objects.
 
 ## [0.4.0-beta] - 2021-08-02
 
