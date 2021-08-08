@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [0.4.1-beta] - TBD
+## [0.4.1-beta] - 2021-08-08
 
 ### Changed
 - Refactored the using directive generation logic to better match how the OpenXML SDK
