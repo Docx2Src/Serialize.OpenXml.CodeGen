@@ -26,6 +26,7 @@ using System;
 using System.CodeDom;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reflection;
 
@@ -50,9 +51,9 @@ namespace Serialize.OpenXml.CodeGen
         /// The <see cref="ISerializeSettings"/> to use during the code generation
         /// process.
         /// </param>
-        /// <param name="typeCounts">
-        /// A lookup <see cref="IDictionary{TKey, TValue}"/> object containing the
-        /// number of times a given type was referenced.  This is used for variable naming
+        /// <param name="types">
+        /// A lookup <see cref="KeyedCollection{TKey, TItem}"/> containing the
+        /// available <see cref="TypeMonitor"/> elements to use for variable naming
         /// purposes.
         /// </param>
         /// <param name="namespaces">
@@ -70,15 +71,18 @@ namespace Serialize.OpenXml.CodeGen
         public static CodeStatementCollection BuildCodeStatements(
             this OpenXmlElement e,
             ISerializeSettings settings,
-            IDictionary<Type, int> typeCounts,
+            KeyedCollection<Type, TypeMonitor> types,
             IDictionary<string, string> namespaces,
             out string elementName)
         {
             // argument validation
             if (e is null) throw new ArgumentNullException(nameof(e));
             if (settings is null) throw new ArgumentNullException(nameof(settings));
-            if (typeCounts is null) throw new ArgumentNullException(nameof(typeCounts));
+            if (types is null) throw new ArgumentNullException(nameof(types));
             if (namespaces is null) throw new ArgumentNullException(nameof(namespaces));
+
+            // Temp TypeMonitor object
+            TypeMonitor typeMon;
 
             // method vars
             var result = new CodeStatementCollection();
@@ -116,7 +120,7 @@ namespace Serialize.OpenXml.CodeGen
                     // Only return the custom code statements if the hanlder
                     // implementation doesn't return null
                     var customCodeStatements = cHandler.BuildCodeStatements(
-                        e, settings, typeCounts, namespaces, out elementName);
+                        e, settings, types, namespaces, out elementName);
 
                     if (customCodeStatements != null) return customCodeStatements;
                 }
@@ -133,9 +137,6 @@ namespace Serialize.OpenXml.CodeGen
                 namespaces.Add(elementType.Namespace, tmpAlias);
             }
 
-            // Build the initializer for the current element
-            elementName = elementType.GenerateVariableName(typeCounts, namespaces);
-
             CodeStatement statement;
             CodeObjectCreateExpression createExpression;
             CodeMethodReferenceExpression methodReferenceExpression;
@@ -147,7 +148,9 @@ namespace Serialize.OpenXml.CodeGen
             Func<string, CodeStatement> handleFmtException;
 
             // Dictionary used to map complex objects to element properties
-            var simpleTypePropReferences = new Dictionary<string, string>();
+            // var simpleTypePropReferences = new Dictionary<string, string>();
+            // Var used to map complex objects to element properties
+            var simpleTypePropReferences = new LinkedList<Tuple<Type, string, string>>();
 
             Type tmpType = null;
             string simpleName = null;
@@ -203,8 +206,16 @@ namespace Serialize.OpenXml.CodeGen
                 // Use the junk var to store the property type name
                 junk = complex.PropertyType.Name;
 
-                // Build the variable name
-                simpleName = complex.PropertyType.GenerateVariableName(typeCounts, namespaces);
+                // Get the appropriate typemonitor for variable naming purposes
+                if (!types.Contains(complex.PropertyType))
+                {
+                    typeMon = new TypeMonitor(complex.PropertyType);
+                    types.Add(typeMon);
+                }
+                else
+                {
+                    typeMon = types[complex.PropertyType];
+                }
 
                 // Need to handle the generic properties special when trying
                 // to build a variable name.
@@ -221,12 +232,32 @@ namespace Serialize.OpenXml.CodeGen
                     typeReference = new CodeTypeReference(junk);
                     typeReference.TypeArguments.AddRange(typeReferenceCollection);
                     createExpression = new CodeObjectCreateExpression(typeReference);
-                    statement = new CodeVariableDeclarationStatement(typeReference, simpleName, createExpression);
                 }
                 else
                 {
+                    typeReferenceCollection = null;
+                    typeReference = null;
                     createExpression = new CodeObjectCreateExpression(junk);
-                    statement = new CodeVariableDeclarationStatement(junk, simpleName, createExpression);
+                }
+
+                // Build the variable name and its appropriate creation statement
+                if (typeMon.GetVariableName(namespaces, out simpleName))
+                {
+                    statement = new CodeAssignStatement(
+                        new CodeVariableReferenceExpression(simpleName), createExpression);
+                }
+                else
+                {
+                    // Need to handle the generic properties special when trying
+                    // to build a variable name.
+                    if (!(typeReference is null))
+                    {
+                        statement = new CodeVariableDeclarationStatement(typeReference, simpleName, createExpression);
+                    }
+                    else
+                    {
+                        statement = new CodeVariableDeclarationStatement(junk, simpleName, createExpression);
+                    }
                 }
                 result.Add(statement);
 
@@ -236,7 +267,9 @@ namespace Serialize.OpenXml.CodeGen
 
                 // Keep track of the objects to assign to the current element
                 // complex properties
-                simpleTypePropReferences.Add(complex.Name, simpleName);
+                _ = simpleTypePropReferences.AddLast(new Tuple<Type, string, string>(
+                    complex.PropertyType, complex.Name, simpleName));
+                // simpleTypePropReferences.Add(complex.Name, simpleName);
             }
 
             // Initialize the mc attribute information, if available
@@ -244,10 +277,29 @@ namespace Serialize.OpenXml.CodeGen
             {
                 tmpType = e.MCAttributes.GetType();
 
-                simpleName = tmpType.GenerateVariableName(typeCounts, namespaces);
+                if (!types.Contains(tmpType))
+                {
+                    typeMon = new TypeMonitor(tmpType);
+                    types.Add(typeMon);
+                }
+                else
+                {
+                    typeMon = types[tmpType];
+                }
 
                 createExpression = new CodeObjectCreateExpression(tmpType.Name);
-                statement = new CodeVariableDeclarationStatement(tmpType.Name, simpleName, createExpression);
+
+                if (typeMon.GetVariableName(namespaces, out simpleName))
+                {
+                    statement = new CodeAssignStatement(
+                        new CodeVariableReferenceExpression(simpleName),
+                        createExpression);
+                }
+                else
+                {
+                    statement = new CodeVariableDeclarationStatement(tmpType.Name, simpleName, createExpression);
+                }
+
                 result.Add(statement);
 
                 foreach (var m in tmpType.GetStringValueProperties())
@@ -263,7 +315,9 @@ namespace Serialize.OpenXml.CodeGen
                     }
                 }
                 result.AddBlankLine();
-                simpleTypePropReferences.Add("MCAttributes", simpleName);
+                _ = simpleTypePropReferences.AddLast(new Tuple<Type, string, string>(
+                    tmpType, "MCAttributes", simpleName));
+                // simpleTypePropReferences.Add("MCAttributes", simpleName);
             }
 
             // Include the alias prefix if the current element belongs to a class
@@ -304,11 +358,31 @@ namespace Serialize.OpenXml.CodeGen
                 var param = new CodePrimitiveExpression(leafText);
                 createExpression.Parameters.Add(param);
             }
-            statement = new CodeVariableDeclarationStatement(junk, elementName, createExpression);
+
+            // Build the initializer for the current element
+            if (!types.Contains(elementType))
+            {
+                typeMon = new TypeMonitor(elementType);
+                types.Add(typeMon);
+            }
+            else
+            {
+                typeMon = types[elementType];
+            }
+            if (typeMon.GetVariableName(namespaces, out elementName))
+            {
+                statement = new CodeAssignStatement(
+                    new CodeVariableReferenceExpression(elementName),
+                    createExpression);
+            }
+            else
+            {
+                statement = new CodeVariableDeclarationStatement(junk, elementName, createExpression);
+            }
             result.Add(statement);
 
             // Don't forget to add any additional namespaces to the element
-            if (e.NamespaceDeclarations != null && e.NamespaceDeclarations.Count() > 0)
+            if (e.NamespaceDeclarations != null && e.NamespaceDeclarations.Any())
             {
                 result.AddBlankLine();
                 foreach (var ns in e.NamespaceDeclarations)
@@ -324,8 +398,8 @@ namespace Serialize.OpenXml.CodeGen
 
                 // Add a line break if namespace declarations were present and if the current
                 // element has additional properties that need to be filled out.
-                if ((cProperties.Count > 0 || simpleTypePropReferences.Count > 0) ||
-                    (sProperties.Count > 0 && sProperties.Count(sp => sp.GetValue(e) != null) > 0))
+                if ((cProperties.Any() || simpleTypePropReferences.Any()) ||
+                    (sProperties.Any() && sProperties.Any(sp => sp.GetValue(e) != null)))
                 {
                     result.AddBlankLine();
                 }
@@ -363,15 +437,21 @@ namespace Serialize.OpenXml.CodeGen
                 result.Add(statement);
             }
 
-            if (simpleTypePropReferences.Count > 0)
+            if (simpleTypePropReferences.Any())
             {
                 foreach (var sProp in simpleTypePropReferences)
                 {
                     statement = new CodeAssignStatement(
                         new CodePropertyReferenceExpression(
-                            new CodeVariableReferenceExpression(elementName), sProp.Key),
-                            new CodeVariableReferenceExpression(sProp.Value));
+                            new CodeVariableReferenceExpression(elementName), sProp.Item2),
+                            new CodeVariableReferenceExpression(sProp.Item3));
                     result.Add(statement);
+
+                    // Reclaim the variable name after it's consumed.
+                    if (types.Contains(sProp.Item1) && types[sProp.Item1].ContainsKey(sProp.Item3))
+                    {
+                        types[sProp.Item1][sProp.Item3] = true;
+                    }
                 }
             }
 
@@ -443,7 +523,7 @@ namespace Serialize.OpenXml.CodeGen
 
                     // use recursion to generate source code for the child elements
                     result.AddRange(
-                        child.BuildCodeStatements(settings, typeCounts, namespaces, out string appendName));
+                        child.BuildCodeStatements(settings, types, namespaces, out string appendName));
 
                     methodReferenceExpression = new CodeMethodReferenceExpression(
                         new CodeVariableReferenceExpression(elementName),
@@ -454,6 +534,9 @@ namespace Serialize.OpenXml.CodeGen
                     result.AddBlankLine();
                 }
             }
+
+            // Indicate that the current variable has been consumed.
+            types[elementType][elementName] = true;
 
             // Return all of the collected expressions and statements
             return result;
@@ -516,10 +599,10 @@ namespace Serialize.OpenXml.CodeGen
         {
             var result = new CodeCompileUnit();
             var eType = element.GetType();
-            var typeCounts = new Dictionary<Type, int>();
+            var types = new TypeMonitorCollection();
             var namespaces = new Dictionary<string, string>();
             var mainNamespace = new CodeNamespace(settings.NamespaceName);
-            var methodStatements = element.BuildCodeStatements(settings, typeCounts, namespaces, out string tmpName);
+            var methodStatements = element.BuildCodeStatements(settings, types, namespaces, out string tmpName);
 
             // Setup the main method
             var mainMethod = new CodeMemberMethod()

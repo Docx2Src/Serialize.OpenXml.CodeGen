@@ -298,6 +298,43 @@ namespace Serialize.OpenXml.CodeGen.Extentions
             IDictionary<Type, int> typeCount,
             IDictionary<string, string> namespaces)
         {
+            if (typeCount is null) throw new ArgumentNullException(nameof(typeCount));
+            string result;
+
+            int tries = 0;
+            if (typeCount.ContainsKey(t))
+            {
+                tries = ++typeCount[t];
+            }
+            result = t.GenerateVariableName(tries, namespaces);
+            return result;
+        }
+
+        /// <summary>
+        /// Generates a variable name to use when generating the appropriate
+        /// CodeDom objects for a given <see cref="Type"/>.
+        /// </summary>
+        /// <param name="t">
+        /// The <see cref="Type"/> to generate the variable name for.
+        /// </param>
+        /// <param name="tries">
+        /// The number of variables that have been already created for
+        /// <paramref name="t"/>.
+        /// </param>
+        /// <param name="namespaces">
+        /// Collection <see cref="IDictionary{TKey, TValue}"/> used to keep
+        /// track of all openxml namespaces used during the process.
+        /// </param>
+        /// <returns>
+        /// A new variable name to use to represent <paramref name="t"/>.
+        /// </returns>
+        public static string GenerateVariableName(
+            this Type t,
+            int tries,
+            IDictionary<string, string> namespaces)
+        {
+            if (namespaces is null) throw new ArgumentNullException(nameof(namespaces));
+
             string tmp;  // Hold the generated name
             string nsPrefix = String.Empty;
 
@@ -313,11 +350,10 @@ namespace Serialize.OpenXml.CodeGen.Extentions
             if (!t.IsGenericType)
             {
                 tmp = String.Concat(nsPrefix, t.Name).ToCamelCase();
-                if (typeCount != null && typeCount.ContainsKey(t))
+                if (tries > 0)
                 {
-                    return String.Concat(tmp, ++typeCount[t]);
+                    return String.Concat(tmp, tries);
                 }
-                typeCount.Add(t, 0);
                 return tmp;
             }
 
@@ -329,15 +365,14 @@ namespace Serialize.OpenXml.CodeGen.Extentions
             }
             tmp = t.Name;
 
-            if (typeCount != null && typeCount.ContainsKey(t))
+            if (tries > 0)
             {
                 return String.Concat(nsPrefix,
                     tmp.Substring(0, tmp.IndexOf("`")),
                     sb.ToString(),
-                    ++typeCount[t]).ToCamelCase();
+                    tries).ToCamelCase();
             }
 
-            typeCount.Add(t, 0);
             return String.Concat(nsPrefix,
                 tmp.Substring(0, tmp.IndexOf("`")),
                 sb.ToString()).ToCamelCase();

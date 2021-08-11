@@ -23,6 +23,7 @@ DEALINGS IN THE SOFTWARE.
 using System;
 using System.CodeDom;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using DocumentFormat.OpenXml;
 
 namespace Serialize.OpenXml.CodeGen
@@ -47,9 +48,9 @@ namespace Serialize.OpenXml.CodeGen
         /// The <see cref="ISerializeSettings"/> to use during the code generation
         /// process.
         /// </param>
-        /// <param name="typeCounts">
-        /// A lookup <see cref="IDictionary{TKey, TValue}"/> object containing the
-        /// number of times a given type was referenced.  This is used for variable naming
+        /// <param name="types">
+        /// A lookup <see cref="KeyedCollection{TKey, TItem}"/> containing the
+        /// available <see cref="TypeMonitor"/> elements to use for variable naming
         /// purposes.
         /// </param>
         /// <param name="namespaces">
@@ -71,7 +72,7 @@ namespace Serialize.OpenXml.CodeGen
         CodeStatementCollection BuildCodeStatements(
             OpenXmlElement element,
             ISerializeSettings settings,
-            IDictionary<Type, int> typeCounts,
+            KeyedCollection<Type, TypeMonitor> types,
             IDictionary<string, string> namespaces,
             out string elementName);
 

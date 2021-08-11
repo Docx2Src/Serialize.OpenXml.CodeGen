@@ -260,7 +260,7 @@ namespace Serialize.OpenXml.CodeGen
         {
             if (bluePrints == null) throw new ArgumentNullException(nameof(bluePrints));
             var result = new CodeTypeMemberCollection();
-            var localTypeCounts = new Dictionary<Type, int>();
+            var localTypes = new TypeMonitorCollection();
             Type rootElementType;
             CodeMemberMethod method;
             bool hasHandlers = settings?.Handlers != null;
@@ -303,11 +303,12 @@ namespace Serialize.OpenXml.CodeGen
                 else
                 {
                     rootElementType = bp.Part.RootElement?.GetType();
+                    localTypes.Clear();
 
                     // Build the element details of the requested part for the current method
                     method.Statements.AddRange(
                         bp.Part.RootElement.BuildCodeStatements(
-                            settings, localTypeCounts, namespaces, out string rootElementVar));
+                            settings, localTypes, namespaces, out string rootElementVar));
 
                     // Now finish up the current method by assigning the OpenXmlElement code statements
                     // back to the appropriate property of the part parameter
