@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## Changed
 - Refactored the variable name generation process to reuse existing variable names 
   when they become available.
+- *\[Breaking Change\]:* Added `UseUniqueVariableNames` property to `ISerializeSettings`
+  interface. This allows to switch between unique and reused variable names.
 - *\[Breaking Change\]:* Changed `typeCounts` parameter to `types` in the 
   `IOpenXmlElementHandler.BuildCodeStatements(...)` method to account for the repurposing
   of existing variable name.
