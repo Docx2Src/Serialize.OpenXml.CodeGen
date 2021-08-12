@@ -35,7 +35,7 @@ namespace Serialize.OpenXml.CodeGen
     /// This will be used only for code generation of
     /// <see cref="DocumentFormat.OpenXml.OpenXmlElement"/> objects.
     /// </remarks>
-    public class TypeMonitor : IDictionary<string, bool>
+    public class TypeMonitor : IReadOnlyDictionary<string, bool>
     {
         #region Private Instance Fields
 
@@ -44,6 +44,11 @@ namespace Serialize.OpenXml.CodeGen
         /// represent for its lifetime.
         /// </summary>
         private readonly Type _type;
+
+        /// <summary>
+        /// Holds the counter used when unique variable names are generated.
+        /// </summary>
+        private int _uniqueCount = 0;
 
         /// <summary>
         /// The object <see cref="Dictionary{TKey, TValue}"/> containing all of the
@@ -72,6 +77,16 @@ namespace Serialize.OpenXml.CodeGen
 
         #endregion
 
+        #region Internal Static Properties
+
+        /// <summary>
+        /// Indicates whether or not to use unique/numbered variable names
+        /// for the current request.
+        /// </summary>
+        internal static bool UseUniqueVariableNames { get; set; } = false;
+
+        #endregion
+
         #region Public Instance Properties
 
         /// <inheritdoc/>
@@ -82,16 +97,13 @@ namespace Serialize.OpenXml.CodeGen
         }
 
         /// <inheritdoc/>
-        public ICollection<string> Keys => _values.Keys;
+        public IEnumerable<string> Keys => _values.Keys;
 
         /// <inheritdoc/>
-        public ICollection<bool> Values => _values.Values;
+        public IEnumerable<bool> Values => _values.Values;
 
         /// <inheritdoc/>
-        public int Count => _values.Count;
-
-        /// <inheritdoc/>
-        public bool IsReadOnly => false;
+        public int Count => UseUniqueVariableNames ? _uniqueCount : _values.Count;
 
         /// <summary>
         /// Gets the <see cref="Type"/> that the current object represents.
@@ -100,10 +112,17 @@ namespace Serialize.OpenXml.CodeGen
 
         #endregion
 
-        #region Public Instance Methods
+        #region Protected Instance Properties
 
-        /// <inheritdoc/>
-        public void Add(string key, bool value) => _values.Add(key, value);
+        /// <summary>
+        /// Gets the underlying <see cref="IDictionary{TKey, TValue}"/> object
+        /// for the current instance.
+        /// </summary>
+        protected IDictionary<string, bool> Dictionary { get { return _values; } }
+
+        #endregion
+
+        #region Public Instance Methods
 
         /// <inheritdoc/>
         public bool ContainsKey(string key) => _values.ContainsKey(key);
@@ -127,17 +146,16 @@ namespace Serialize.OpenXml.CodeGen
         /// </returns>
         public bool GetVariableName(IDictionary<string, string> namespaces, out string varName)
         {
-            if (_values.Count > 0 && _values.Values.Count(v => v) > 0)
+            if (UseUniqueVariableNames)
             {
-                varName = _values.LastOrDefault(v => v.Value).Key;
-                _values[varName] = false;
-                return true;
-            }
 
-            int tries = _values.Count;
-            varName = Type.GenerateVariableName(tries, namespaces);
-            _values.Add(varName, false);
-            return false;
+                varName = Type.GenerateVariableName(_uniqueCount++, namespaces);
+                return false;
+            }
+            else
+            {
+                return CreateAndTrackVariableName(namespaces, out varName);
+            }
         }
 
         /// <inheritdoc/>
@@ -148,45 +166,57 @@ namespace Serialize.OpenXml.CodeGen
 
         #endregion
 
+        #region Protected Instance Methods
+
+        /// <summary>
+        /// Adds a new key/value pair to this collection.
+        /// </summary>
+        /// <param name="key">The key of the new pair.</param>
+        /// <param name="value">The value of the new pair.</param>
+        protected void Add(string key, bool value) => _values.Add(key, value);
+
+        /// <summary>
+        /// Responible for retrieving an existing or new variable name,
+        /// depending on what is available at the time, to generate new
+        /// code statements with.
+        /// </summary>
+        /// <param name="namespaces">
+        /// Collection <see cref="IDictionary{TKey, TValue}"/> used to keep
+        /// track of all openxml namespaces used during the process.
+        /// </param>
+        /// <param name="varName">
+        /// The variable name to use.
+        /// </param>
+        /// <returns>
+        /// <see langword="true"/> if <paramref name="varName"/> already exists
+        /// in existing generated code with constructor statements; otherwise
+        /// <see langword="false"/> is returned, indicating that no existing
+        /// generated code yet exists for <paramref name="varName"/>.
+        /// </returns>
+        protected virtual bool CreateAndTrackVariableName(
+            IDictionary<string, string> namespaces, out string varName)
+        {
+            if (Count > 0 && this.Values.Any(v => v))
+            {
+                varName = this.LastOrDefault(v => v.Value).Key;
+                this[varName] = false;
+                return true;
+            }
+
+            int tries = _values.Count;
+            varName = Type.GenerateVariableName(tries, namespaces);
+            Add(varName, false);
+            return false;
+        }
+
+        #endregion
+
         #region Private Instance Methods;
-
-        /// <inheritdoc/>
-        void ICollection<KeyValuePair<string, bool>>.Add(KeyValuePair<string, bool> item)
-        {
-            Add(item.Key, item.Value);
-        }
-
-        /// <inheritdoc/>
-        void ICollection<KeyValuePair<string, bool>>.Clear() => _values.Clear();
-
-        /// <inheritdoc/>
-        bool ICollection<KeyValuePair<string, bool>>.Contains(KeyValuePair<string, bool> item)
-        {
-            return ((IDictionary<string, bool>)_values).Contains(item);
-        }
-
-        /// <inheritdoc/>
-        void ICollection<KeyValuePair<string, bool>>.CopyTo(KeyValuePair<string, bool>[] array, int arrayIndex)
-        {
-            ((ICollection<KeyValuePair<string, bool>>)_values).CopyTo(array, arrayIndex);
-        }
 
         /// <inheritdoc/>
         IEnumerator<KeyValuePair<string, bool>> IEnumerable<KeyValuePair<string, bool>>.GetEnumerator()
         {
             return ((IEnumerable<KeyValuePair<string, bool>>)_values).GetEnumerator();
-        }
-
-        /// <inheritdoc/>
-        bool IDictionary<string, bool>.Remove(string key)
-        {
-            return _values.Remove(key);
-        }
-
-        /// <inheritdoc/>
-        public bool Remove(KeyValuePair<string, bool> item)
-        {
-            return ((ICollection<KeyValuePair<string, bool>>)_values).Remove(item);
         }
 
         /// <inheritdoc/>

@@ -602,7 +602,11 @@ namespace Serialize.OpenXml.CodeGen
             var types = new TypeMonitorCollection();
             var namespaces = new Dictionary<string, string>();
             var mainNamespace = new CodeNamespace(settings.NamespaceName);
-            var methodStatements = element.BuildCodeStatements(settings, types, namespaces, out string tmpName);
+            CodeStatementCollection methodStatements;
+
+            // Set the uniqueness indicator before building the requested code statements.
+            TypeMonitor.UseUniqueVariableNames = settings.UseUniqueVariableNames;
+            methodStatements = element.BuildCodeStatements(settings, types, namespaces, out string tmpName);
 
             // Setup the main method
             var mainMethod = new CodeMemberMethod()

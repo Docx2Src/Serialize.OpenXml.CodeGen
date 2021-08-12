@@ -75,6 +75,12 @@ namespace Serialize.OpenXml.CodeGen
         /// </summary>
         string NamespaceName { get; }
 
+        /// <summary>
+        /// Indicates whether or not to generate unique variable names for each
+        /// <see cref="OpenXmlElement"/> object being serialized.
+        /// </summary>
+        bool UseUniqueVariableNames { get; }
+
         #endregion
     }
 }

@@ -111,6 +111,9 @@ namespace Serialize.OpenXml.CodeGen
             string docTypeEnumVal;
             KeyValuePair<string, Type> rootVarType;
 
+            // Set the var uniqueness indicator
+            TypeMonitor.UseUniqueVariableNames = settings.UseUniqueVariableNames;
+
             // Add all initial namespace names first
             if (!namespaces.ContainsKey("System"))
             {

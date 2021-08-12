@@ -469,6 +469,9 @@ namespace Serialize.OpenXml.CodeGen
             var mainNamespace = new CodeNamespace(settings.NamespaceName);
             var bluePrints = new OpenXmlPartBluePrintCollection();
 
+            // Set the var uniqueness indicator
+            TypeMonitor.UseUniqueVariableNames = settings.UseUniqueVariableNames;
+
             // Assign the appropriate variable name
             if (partTypeCounts.ContainsKey(partTypeFullName))
             {
