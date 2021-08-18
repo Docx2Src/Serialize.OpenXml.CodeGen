@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - *\[Breaking Change\]:* Changed `typeCounts` parameter to `types` in the 
   `IOpenXmlElementHandler.BuildCodeStatements(...)` method to account for the repurposing
   of existing variable name.
+- Update DocumentFormat.OpenXml reference to 2.13.1.
 
 ## [0.4.1-beta] - 2021-08-08
 
