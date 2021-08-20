@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   of existing variable name.
 - Update DocumentFormat.OpenXml reference to 2.13.1.
 
+## Fixed
+- Use the correct `CodeExpression` classes for the `XmlNodeType` parameter of the
+  `OpenXmlMiscNode` constructor.
+
 ## [0.4.1-beta] - 2021-08-08
 
 ### Changed

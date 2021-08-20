@@ -269,7 +269,6 @@ namespace Serialize.OpenXml.CodeGen
                 // complex properties
                 _ = simpleTypePropReferences.AddLast(new Tuple<Type, string, string>(
                     complex.PropertyType, complex.Name, simpleName));
-                // simpleTypePropReferences.Add(complex.Name, simpleName);
             }
 
             // Initialize the mc attribute information, if available
@@ -343,9 +342,27 @@ namespace Serialize.OpenXml.CodeGen
             // xml values.
             else if (e is OpenXmlMiscNode miscNode)
             {
+                // Need to grab the XmlNodeType enum properties in order to 
+                // initialize the OpenXmlMiscNode constructor correctly.
+                var xmlNodeTypeType = miscNode.XmlNodeType.GetType();
+                
+                if (!namespaces.ContainsKey(xmlNodeTypeType.Namespace))
+                {
+                    _ = xmlNodeTypeType.ExistsInDifferentNamespace(namespaces, out string tmpAlias);
+                    namespaces.Add(xmlNodeTypeType.Namespace, tmpAlias);
+                }
+
+                var xmlNodeTypeName = xmlNodeTypeType.GetObjectTypeName(namespaces,
+                    settings.NamespaceAliasOptions.Order);
+                var miscNodeType = miscNode.GetType();
+                var xmlNodeTypePi = miscNodeType.GetProperty("XmlNodeType");
+                var xmlNodeVal = xmlNodeTypePi.GetValue(miscNode);
+
                 createExpression.Parameters.AddRange(new CodeExpression[]
                 {
-                    new CodePrimitiveExpression(miscNode.XmlNodeType),
+                    new CodeFieldReferenceExpression(
+                        new CodeVariableReferenceExpression(xmlNodeTypeName),
+                        xmlNodeVal.ToString()),
                     new CodePrimitiveExpression(miscNode.OuterXml)
                 });
             }

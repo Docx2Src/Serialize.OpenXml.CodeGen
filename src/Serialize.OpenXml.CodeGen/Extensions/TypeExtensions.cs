@@ -242,7 +242,7 @@ namespace Serialize.OpenXml.CodeGen.Extentions
                 {
                     al = findAlias(t);
                     break;
-                }                
+                }
             }
 
             if (!foundElsewhere)
@@ -273,41 +273,6 @@ namespace Serialize.OpenXml.CodeGen.Extentions
 
             alias = al;
             return foundElsewhere;
-        }
-
-        /// <summary>
-        /// Generates a variable name to use when generating the appropriate
-        /// CodeDom objects for a given <see cref="Type"/>.
-        /// </summary>
-        /// <param name="t">
-        /// The <see cref="Type"/> to generate the variable name for.
-        /// </param>
-        /// <param name="typeCount">
-        /// The <see cref="IDictionary{TKey, TValue}"/> object that tracks 
-        /// the number of times a given type has been generated.
-        /// </param>
-        /// <param name="namespaces">
-        /// Collection <see cref="IDictionary{TKey, TValue}"/> used to keep
-        /// track of all openxml namespaces used during the process.
-        /// </param>
-        /// <returns>
-        /// A new variable name to use to represent <paramref name="t"/>.
-        /// </returns>
-        public static string GenerateVariableName(
-            this Type t,
-            IDictionary<Type, int> typeCount,
-            IDictionary<string, string> namespaces)
-        {
-            if (typeCount is null) throw new ArgumentNullException(nameof(typeCount));
-            string result;
-
-            int tries = 0;
-            if (typeCount.ContainsKey(t))
-            {
-                tries = ++typeCount[t];
-            }
-            result = t.GenerateVariableName(tries, namespaces);
-            return result;
         }
 
         /// <summary>
