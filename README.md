@@ -1,6 +1,8 @@
 Open XML Document Code Generator
 ================================
 
+![GitHub](https://img.shields.io/github/license/rmboggs/Serialize.OpenXml.CodeGen)
+
 [![Build status](https://ci.appveyor.com/api/projects/status/rachpeoigx71q1ro/branch/master?svg=true)](https://ci.appveyor.com/project/rmboggs/serialize-openxml-codegen/branch/master) ![Nuget](https://img.shields.io/nuget/v/Serialize.OpenXml.CodeGen)
 
 The Open XML Document Code Generator is a dotnet standard library that contains processes that convert OpenXML documents (such as .docx, .pptx, and .xlsx) into [CodeCompileUnit](https://docs.microsoft.com/en-us/dotnet/api/system.codedom.codecompileunit?view=netcore-3.1) objects that can be transformed into source code using any class that inherits from the [CodeDomProvider](https://docs.microsoft.com/en-us/dotnet/api/system.codedom.compiler.codedomprovider?view=netcore-3.1) class.  This allows source code generation into other .NET languages, such as Visual Basic.net, for greater learning possibilities.
