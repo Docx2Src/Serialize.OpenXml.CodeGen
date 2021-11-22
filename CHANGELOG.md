@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [0.4.2-beta] - TBD
+## [0.4.2-beta] - 2021-11-22
 
 ## Changed
 - Refactored the variable name generation process to reuse existing variable names 
@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - *\[Breaking Change\]:* Changed `typeCounts` parameter to `types` in the 
   `IOpenXmlElementHandler.BuildCodeStatements(...)` method to account for the repurposing
   of existing variable name.
-- Update DocumentFormat.OpenXml reference to 2.13.1.
+- Update DocumentFormat.OpenXml reference to 2.14.0.
 
 ## Fixed
 - Use the correct `CodeExpression` classes for the `XmlNodeType` parameter of the
