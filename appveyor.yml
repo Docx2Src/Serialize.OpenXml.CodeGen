@@ -1,5 +1,5 @@
 version: 0.4.1.{build}
-os: Visual Studio 2017
+os: Visual Studio 2022
 
 # Only focus on the master branch
 branches:
