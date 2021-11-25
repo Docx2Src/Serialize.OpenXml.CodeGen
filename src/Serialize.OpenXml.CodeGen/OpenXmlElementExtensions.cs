@@ -29,6 +29,8 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Serialize.OpenXml.CodeGen
 {
@@ -591,7 +593,8 @@ namespace Serialize.OpenXml.CodeGen
         /// A new <see cref="CodeCompileUnit"/> containing the instructions to build
         /// the referenced <see cref="OpenXmlElement"/>.
         /// </returns>
-        public static CodeCompileUnit GenerateSourceCode(this OpenXmlElement element, NamespaceAliasOptions opts)
+        public static CodeCompileUnit GenerateSourceCode(
+            this OpenXmlElement element, NamespaceAliasOptions opts)
         {
             return element.GenerateSourceCode(new DefaultSerializeSettings(opts));
         }
@@ -612,59 +615,142 @@ namespace Serialize.OpenXml.CodeGen
         /// A new <see cref="CodeCompileUnit"/> containing the instructions to build
         /// the referenced <see cref="OpenXmlElement"/>.
         /// </returns>
-        public static CodeCompileUnit GenerateSourceCode(this OpenXmlElement element, ISerializeSettings settings)
+        public static CodeCompileUnit GenerateSourceCode(
+            this OpenXmlElement element,
+            ISerializeSettings settings)
         {
-            var result = new CodeCompileUnit();
-            var eType = element.GetType();
-            var types = new TypeMonitorCollection();
-            var namespaces = new Dictionary<string, string>();
-            var mainNamespace = new CodeNamespace(settings.NamespaceName);
-            CodeStatementCollection methodStatements;
+            return DefaultSerializeSettings.TaskIndustry.StartNew(
+                () => element.GenerateSourceCodeAsync(settings, CancellationToken.None))
+                .Unwrap()
+                .GetAwaiter()
+                .GetResult();
+        }
 
-            // Set the uniqueness indicator before building the requested code statements.
-            TypeMonitor.UseUniqueVariableNames = settings.UseUniqueVariableNames;
-            methodStatements = element.BuildCodeStatements(settings, types, namespaces, out string tmpName);
+        /// <summary>
+        /// Converts an <see cref="OpenXmlElement"/> into a <see cref="CodeCompileUnit"/>
+        /// object that can be used to build code in a given .NET language that would
+        /// build the referenced <see cref="OpenXmlElement"/>.
+        /// </summary>
+        /// <param name="element">
+        /// The <see cref="OpenXmlElement"/> object to generate source code for.
+        /// </param>
+        /// <param name="token">
+        /// Task cancellation token.
+        /// </param>
+        /// <returns>
+        /// A new <see cref="CodeCompileUnit"/> containing the instructions to build
+        /// the referenced <see cref="OpenXmlElement"/>.
+        /// </returns>
+        public static async Task<CodeCompileUnit> GenerateSourceCodeAsync(
+            this OpenXmlElement element, CancellationToken token)
+        {
+            return await element.GenerateSourceCodeAsync(
+                new DefaultSerializeSettings(), token);
+        }
 
-            // Setup the main method
-            var mainMethod = new CodeMemberMethod()
+        /// <summary>
+        /// Converts an <see cref="OpenXmlElement"/> into a <see cref="CodeCompileUnit"/>
+        /// object that can be used to build code in a given .NET language that would
+        /// build the referenced <see cref="OpenXmlElement"/>.
+        /// </summary>
+        /// <param name="element">
+        /// The <see cref="OpenXmlElement"/> object to generate source code for.
+        /// </param>
+        /// <param name="opts">
+        /// The <see cref="NamespaceAliasOptions"/> to apply to the resulting source code.
+        /// </param>
+        /// <param name="token">
+        /// Task cancellation token.
+        /// </param>
+        /// <returns>
+        /// A new <see cref="CodeCompileUnit"/> containing the instructions to build
+        /// the referenced <see cref="OpenXmlElement"/>.
+        /// </returns>
+        public static async Task<CodeCompileUnit> GenerateSourceCodeAsync(
+            this OpenXmlElement element, NamespaceAliasOptions opts, CancellationToken token)
+        {
+            return await element.GenerateSourceCodeAsync(
+                new DefaultSerializeSettings(opts), token);
+        }
+
+        /// <summary>
+        /// Converts an <see cref="OpenXmlElement"/> into a <see cref="CodeCompileUnit"/>
+        /// object that can be used to build code in a given .NET language that would
+        /// build the referenced <see cref="OpenXmlElement"/>.
+        /// </summary>
+        /// <param name="element">
+        /// The <see cref="OpenXmlElement"/> object to generate source code for.
+        /// </param>
+        /// <param name="settings">
+        /// The <see cref="ISerializeSettings"/> to use during the code generation
+        /// process.
+        /// </param>
+        /// <param name="token">
+        /// Task cancellation token.
+        /// </param>
+        /// <returns>
+        /// A new <see cref="CodeCompileUnit"/> containing the instructions to build
+        /// the referenced <see cref="OpenXmlElement"/>.
+        /// </returns>
+        public static async Task<CodeCompileUnit> GenerateSourceCodeAsync(
+            this OpenXmlElement element,
+            ISerializeSettings settings,
+            CancellationToken token)
+        {
+            return await Task.Run(() =>
             {
-                Name = $"Build{eType.Name}",
-                ReturnType = new CodeTypeReference(eType.GetObjectTypeName(namespaces, settings.NamespaceAliasOptions.Order)),
-                Attributes = MemberAttributes.Public | MemberAttributes.Final
-            };
-            mainMethod.Statements.AddRange(methodStatements);
-            mainMethod.Statements.Add(new CodeMethodReturnStatement(new CodeVariableReferenceExpression(tmpName)));
+                var result = new CodeCompileUnit();
+                var eType = element.GetType();
+                var types = new TypeMonitorCollection();
+                var namespaces = new Dictionary<string, string>();
+                var mainNamespace = new CodeNamespace(settings.NamespaceName);
+                CodeStatementCollection methodStatements;
 
-            // Setup the main class next
-            var mainClass = new CodeTypeDeclaration($"{eType.Name}BuilderClass")
-            {
-                IsClass = true,
-                Attributes = MemberAttributes.Public
-            };
-            mainClass.Members.Add(mainMethod);
+                // Set the uniqueness indicator before building the requested code statements.
+                TypeMonitor.UseUniqueVariableNames = settings.UseUniqueVariableNames;
+                methodStatements = element.BuildCodeStatements(settings, types, namespaces, out string tmpName);
 
-            // Setup the imports
-            var codeNameSpaces = new List<CodeNamespaceImport>(namespaces.Count);
-            foreach (var ns in namespaces)
-            {
-                if (!String.IsNullOrWhiteSpace(ns.Value))
+                // Setup the main method
+                var mainMethod = new CodeMemberMethod()
                 {
-                    codeNameSpaces.Add(settings.NamespaceAliasOptions.BuildNamespaceImport(
-                        ns.Key, ns.Value));
-                }
-                else
+                    Name = $"Build{eType.Name}",
+                    ReturnType = new CodeTypeReference(eType.GetObjectTypeName(namespaces, settings.NamespaceAliasOptions.Order)),
+                    Attributes = MemberAttributes.Public | MemberAttributes.Final
+                };
+                mainMethod.Statements.AddRange(methodStatements);
+                mainMethod.Statements.Add(new CodeMethodReturnStatement(new CodeVariableReferenceExpression(tmpName)));
+
+                // Setup the main class next
+                var mainClass = new CodeTypeDeclaration($"{eType.Name}BuilderClass")
                 {
-                    codeNameSpaces.Add(new CodeNamespaceImport(ns.Key));
+                    IsClass = true,
+                    Attributes = MemberAttributes.Public
+                };
+                mainClass.Members.Add(mainMethod);
+
+                // Setup the imports
+                var codeNameSpaces = new List<CodeNamespaceImport>(namespaces.Count);
+                foreach (var ns in namespaces)
+                {
+                    if (!String.IsNullOrWhiteSpace(ns.Value))
+                    {
+                        codeNameSpaces.Add(settings.NamespaceAliasOptions.BuildNamespaceImport(
+                            ns.Key, ns.Value));
+                    }
+                    else
+                    {
+                        codeNameSpaces.Add(new CodeNamespaceImport(ns.Key));
+                    }
                 }
-            }
-            codeNameSpaces.Sort(new CodeNamespaceImportComparer(settings.NamespaceAliasOptions));
+                codeNameSpaces.Sort(new CodeNamespaceImportComparer(settings.NamespaceAliasOptions));
 
-            mainNamespace.Imports.AddRange(codeNameSpaces.ToArray());
-            mainNamespace.Types.Add(mainClass);
+                mainNamespace.Imports.AddRange(codeNameSpaces.ToArray());
+                mainNamespace.Types.Add(mainClass);
 
-            // Finish up
-            result.Namespaces.Add(mainNamespace);
-            return result;
+                // Finish up
+                result.Namespaces.Add(mainNamespace);
+                return result;
+            }, token);
         }
 
         /// <summary>
@@ -703,7 +789,8 @@ namespace Serialize.OpenXml.CodeGen
         /// A <see cref="string"/> representation of the source code generated by
         /// <paramref name="provider"/> that could create <paramref name="element"/> when compiled.
         /// </returns>
-        public static string GenerateSourceCode(this OpenXmlElement element, NamespaceAliasOptions opts, CodeDomProvider provider)
+        public static string GenerateSourceCode(
+            this OpenXmlElement element, NamespaceAliasOptions opts, CodeDomProvider provider)
         {
             return element.GenerateSourceCode(new DefaultSerializeSettings(opts), provider);
         }
@@ -726,10 +813,101 @@ namespace Serialize.OpenXml.CodeGen
         /// A <see cref="string"/> representation of the source code generated by
         /// <paramref name="provider"/> that could create <paramref name="element"/> when compiled.
         /// </returns>
-        public static string GenerateSourceCode(this OpenXmlElement element, ISerializeSettings settings, CodeDomProvider provider)
+        public static string GenerateSourceCode(
+            this OpenXmlElement element,
+            ISerializeSettings settings,
+            CodeDomProvider provider)
+        {
+            return DefaultSerializeSettings.TaskIndustry.StartNew(
+                () => element.GenerateSourceCodeAsync(settings, provider, CancellationToken.None))
+                .Unwrap()
+                .GetAwaiter()
+                .GetResult();
+        }
+
+        /// <summary>
+        /// Converts an <see cref="OpenXmlElement"/> into a <see cref="string"/> representation
+        /// of dotnet source code that can be compiled to build <paramref name="element"/>.
+        /// </summary>
+        /// <param name="element">
+        /// The <see cref="OpenXmlElement"/> object to generate source code for.
+        /// </param>
+        /// <param name="provider">
+        /// The <see cref="CodeDomProvider"/> object to create the resulting source code.
+        /// </param>
+        /// <param name="token">
+        /// Task cancellation token.
+        /// </param>
+        /// <returns>
+        /// A <see cref="string"/> representation of the source code generated by
+        /// <paramref name="provider"/> that could create <paramref name="element"/> when compiled.
+        /// </returns>
+        public static async Task<string> GenerateSourceCodeAsync(
+            this OpenXmlElement element, CodeDomProvider provider, CancellationToken token)
+        {
+            return await element.GenerateSourceCodeAsync(
+                new DefaultSerializeSettings(), provider, token);
+        }
+
+        /// <summary>
+        /// Converts an <see cref="OpenXmlElement"/> into a <see cref="string"/> representation
+        /// of dotnet source code that can be compiled to build <paramref name="element"/>.
+        /// </summary>
+        /// <param name="element">
+        /// The <see cref="OpenXmlElement"/> object to generate source code for.
+        /// </param>
+        /// <param name="opts">
+        /// The <see cref="NamespaceAliasOptions"/> to apply to the resulting source code.
+        /// </param>
+        /// <param name="provider">
+        /// The <see cref="CodeDomProvider"/> object to create the resulting source code.
+        /// </param>
+        /// <param name="token">
+        /// Task cancellation token.
+        /// </param>
+        /// <returns>
+        /// A <see cref="string"/> representation of the source code generated by
+        /// <paramref name="provider"/> that could create <paramref name="element"/> when compiled.
+        /// </returns>
+        public static async Task<string> GenerateSourceCodeAsync(
+            this OpenXmlElement element,
+            NamespaceAliasOptions opts,
+            CodeDomProvider provider,
+            CancellationToken token)
+        {
+            return await element.GenerateSourceCodeAsync(
+                new DefaultSerializeSettings(opts), provider, token);
+        }
+
+        /// <summary>
+        /// Converts an <see cref="OpenXmlElement"/> into a <see cref="string"/> representation
+        /// of dotnet source code that can be compiled to build <paramref name="element"/>.
+        /// </summary>
+        /// <param name="element">
+        /// The <see cref="OpenXmlElement"/> object to generate source code for.
+        /// </param>
+        /// <param name="settings">
+        /// The <see cref="ISerializeSettings"/> to use during the code generation
+        /// process.
+        /// </param>
+        /// <param name="provider">
+        /// The <see cref="CodeDomProvider"/> object to create the resulting source code.
+        /// </param>
+        /// <param name="token">
+        /// Task cancellation token.
+        /// </param>
+        /// <returns>
+        /// A <see cref="string"/> representation of the source code generated by
+        /// <paramref name="provider"/> that could create <paramref name="element"/> when compiled.
+        /// </returns>
+        public static async Task<string> GenerateSourceCodeAsync(
+            this OpenXmlElement element,
+            ISerializeSettings settings,
+            CodeDomProvider provider,
+            CancellationToken token)
         {
             var codeString = new System.Text.StringBuilder();
-            var code = element.GenerateSourceCode(settings);
+            var code = await element.GenerateSourceCodeAsync(settings, token);
 
             using (var sw = new System.IO.StringWriter(codeString))
             {

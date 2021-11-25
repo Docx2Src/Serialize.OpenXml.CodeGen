@@ -29,6 +29,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Serialize.OpenXml.CodeGen
 {
@@ -457,99 +459,11 @@ namespace Serialize.OpenXml.CodeGen
         /// </returns>
         public static CodeCompileUnit GenerateSourceCode(this OpenXmlPart part, ISerializeSettings settings)
         {
-            CodeMethodReferenceExpression methodRef;
-            OpenXmlPartBluePrint mainBluePrint;
-            var result = new CodeCompileUnit();
-            var eType = part.GetType();
-            var partTypeName = eType.Name;
-            var partTypeFullName = eType.FullName;
-            var varName = eType.Name.ToCamelCase();
-            var partTypeCounts = new Dictionary<string, int>();
-            var namespaces = new Dictionary<string, string>();
-            var mainNamespace = new CodeNamespace(settings.NamespaceName);
-            var bluePrints = new OpenXmlPartBluePrintCollection();
-
-            // Set the var uniqueness indicator
-            TypeMonitor.UseUniqueVariableNames = settings.UseUniqueVariableNames;
-
-            // Assign the appropriate variable name
-            if (partTypeCounts.ContainsKey(partTypeFullName))
-            {
-                varName = String.Concat(varName, partTypeCounts[partTypeFullName]++);
-            }
-            else
-            {
-                partTypeCounts.Add(partTypeFullName, 1);
-            }
-
-            // Generate a new blue print for the current part to help create the main
-            // method reference then add it to the blue print collection
-            mainBluePrint = new OpenXmlPartBluePrint(part, varName);
-            bluePrints.Add(mainBluePrint);
-            methodRef = new CodeMethodReferenceExpression(new CodeThisReferenceExpression(), mainBluePrint.MethodName);
-
-            // Build the entry method
-            var entryMethod = new CodeMemberMethod()
-            {
-                Name = $"Create{partTypeName}",
-                ReturnType = new CodeTypeReference(),
-                Attributes = MemberAttributes.Public | MemberAttributes.Final
-            };
-            entryMethod.Parameters.Add(
-                new CodeParameterDeclarationExpression(partTypeName, methodParamName)
-                { Direction = FieldDirection.Ref });
-
-            var relCodeStatements = part.GenerateRelationshipCodeStatements(new CodeThisReferenceExpression());
-            if (relCodeStatements.Count > 0)
-            {
-                entryMethod.Statements.AddRange(relCodeStatements);
-            }
-
-            // Add all of the child part references here
-            if (part.Parts != null)
-            {
-                var rootPartPair = new KeyValuePair<string, Type>(methodParamName, eType);
-                foreach (var pair in part.Parts)
-                {
-                    entryMethod.Statements.AddRange(BuildEntryMethodCodeStatements(
-                        pair, settings, partTypeCounts, namespaces, bluePrints, rootPartPair));
-                }
-            }
-
-            entryMethod.Statements.Add(new CodeMethodInvokeExpression(methodRef,
-                new CodeArgumentReferenceExpression(methodParamName)));
-
-            // Setup the main class next
-            var mainClass = new CodeTypeDeclaration($"{eType.Name}BuilderClass")
-            {
-                IsClass = true,
-                Attributes = MemberAttributes.Public
-            };
-            mainClass.Members.Add(entryMethod);
-            mainClass.Members.AddRange(BuildHelperMethods(bluePrints, settings, namespaces));
-
-            // Setup the imports
-            var codeNameSpaces = new List<CodeNamespaceImport>(namespaces.Count);
-            foreach (var ns in namespaces)
-            {
-                if (!String.IsNullOrWhiteSpace(ns.Value))
-                {
-                    codeNameSpaces.Add(settings.NamespaceAliasOptions.BuildNamespaceImport(
-                        ns.Key, ns.Value));
-                }
-                else
-                {
-                    codeNameSpaces.Add(new CodeNamespaceImport(ns.Key));
-                }
-            }
-            codeNameSpaces.Sort(new CodeNamespaceImportComparer(settings.NamespaceAliasOptions));
-
-            mainNamespace.Imports.AddRange(codeNameSpaces.ToArray());
-            mainNamespace.Types.Add(mainClass);
-
-            // Finish up
-            result.Namespaces.Add(mainNamespace);
-            return result;
+            return DefaultSerializeSettings.TaskIndustry.StartNew(
+                () => part.GenerateSourceCodeAsync(settings, CancellationToken.None))
+                .Unwrap()
+                .GetAwaiter()
+                .GetResult();
         }
 
         /// <summary>
@@ -615,6 +529,266 @@ namespace Serialize.OpenXml.CodeGen
         {
             var codeString = new System.Text.StringBuilder();
             var code = part.GenerateSourceCode(settings);
+
+            using (var sw = new StringWriter(codeString))
+            {
+                provider.GenerateCodeFromCompileUnit(code, sw,
+                    new CodeGeneratorOptions() { BracingStyle = "C" });
+            }
+            return codeString.ToString().RemoveOutputHeaders().Trim();
+        }
+
+        /// <summary>
+        /// Converts an <see cref="OpenXmlPart"/> into a CodeDom object that can be used
+        /// to build code in a given .NET language to build the referenced <see cref="OpenXmlPart"/>.
+        /// </summary>
+        /// <param name="part">
+        /// The <see cref="OpenXmlPart"/> object to generate source code for.
+        /// </param>
+        /// <param name="token">
+        /// Task cancellation token.
+        /// </param>
+        /// <returns>
+        /// A new <see cref="CodeCompileUnit"/> containing the instructions to build
+        /// the referenced <see cref="OpenXmlPart"/>.
+        /// </returns>
+        public static async Task<CodeCompileUnit> GenerateSourceCodeAsync(
+            this OpenXmlPart part,
+            CancellationToken token)
+        {
+            return await part.GenerateSourceCodeAsync(new DefaultSerializeSettings(), token);
+        }
+
+        /// <summary>
+        /// Converts an <see cref="OpenXmlPart"/> into a CodeDom object that can be used
+        /// to build code in a given .NET language to build the referenced <see cref="OpenXmlPart"/>.
+        /// </summary>
+        /// <param name="part">
+        /// The <see cref="OpenXmlPart"/> object to generate source code for.
+        /// </param>
+        /// <param name="opts">
+        /// The <see cref="NamespaceAliasOptions"/> to apply to the resulting source code.
+        /// </param>
+        /// <param name="token">
+        /// Task cancellation token.
+        /// </param>
+        /// <returns>
+        /// A new <see cref="CodeCompileUnit"/> containing the instructions to build
+        /// the referenced <see cref="OpenXmlPart"/>.
+        /// </returns>
+        public static async Task<CodeCompileUnit> GenerateSourceCodeAsync(
+            this OpenXmlPart part,
+            NamespaceAliasOptions opts,
+            CancellationToken token)
+        {
+            return await part.GenerateSourceCodeAsync(new DefaultSerializeSettings(opts), token);
+        }
+
+        /// <summary>
+        /// Converts an <see cref="OpenXmlPart"/> into a CodeDom object that can be used
+        /// to build code in a given .NET language to build the referenced <see cref="OpenXmlPart"/>.
+        /// </summary>
+        /// <param name="part">
+        /// The <see cref="OpenXmlPart"/> object to generate source code for.
+        /// </param>
+        /// <param name="settings">
+        /// The <see cref="ISerializeSettings"/> to use during the code generation
+        /// process.
+        /// </param>
+        /// <param name="token">
+        /// Task cancellation token.
+        /// </param>
+        /// <returns>
+        /// A new <see cref="CodeCompileUnit"/> containing the instructions to build
+        /// the referenced <see cref="OpenXmlPart"/>.
+        /// </returns>
+        public static async Task<CodeCompileUnit> GenerateSourceCodeAsync(
+            this OpenXmlPart part,
+            ISerializeSettings settings,
+            CancellationToken token)
+        {
+            return await Task.Run(() =>
+            {
+                CodeMethodReferenceExpression methodRef;
+                OpenXmlPartBluePrint mainBluePrint;
+                var result = new CodeCompileUnit();
+                var eType = part.GetType();
+                var partTypeName = eType.Name;
+                var partTypeFullName = eType.FullName;
+                var varName = eType.Name.ToCamelCase();
+                var partTypeCounts = new Dictionary<string, int>();
+                var namespaces = new Dictionary<string, string>();
+                var mainNamespace = new CodeNamespace(settings.NamespaceName);
+                var bluePrints = new OpenXmlPartBluePrintCollection();
+
+                // Set the var uniqueness indicator
+                TypeMonitor.UseUniqueVariableNames = settings.UseUniqueVariableNames;
+
+                // Assign the appropriate variable name
+                if (partTypeCounts.ContainsKey(partTypeFullName))
+                {
+                    varName = String.Concat(varName, partTypeCounts[partTypeFullName]++);
+                }
+                else
+                {
+                    partTypeCounts.Add(partTypeFullName, 1);
+                }
+
+                // Generate a new blue print for the current part to help create the main
+                // method reference then add it to the blue print collection
+                mainBluePrint = new OpenXmlPartBluePrint(part, varName);
+                bluePrints.Add(mainBluePrint);
+                methodRef = new CodeMethodReferenceExpression(new CodeThisReferenceExpression(), mainBluePrint.MethodName);
+
+                // Build the entry method
+                var entryMethod = new CodeMemberMethod()
+                {
+                    Name = $"Create{partTypeName}",
+                    ReturnType = new CodeTypeReference(),
+                    Attributes = MemberAttributes.Public | MemberAttributes.Final
+                };
+                entryMethod.Parameters.Add(
+                    new CodeParameterDeclarationExpression(partTypeName, methodParamName)
+                    { Direction = FieldDirection.Ref });
+
+                var relCodeStatements = part.GenerateRelationshipCodeStatements(new CodeThisReferenceExpression());
+                if (relCodeStatements.Count > 0)
+                {
+                    entryMethod.Statements.AddRange(relCodeStatements);
+                }
+
+                // Add all of the child part references here
+                if (part.Parts != null)
+                {
+                    var rootPartPair = new KeyValuePair<string, Type>(methodParamName, eType);
+                    foreach (var pair in part.Parts)
+                    {
+                        entryMethod.Statements.AddRange(BuildEntryMethodCodeStatements(
+                            pair, settings, partTypeCounts, namespaces, bluePrints, rootPartPair));
+                    }
+                }
+
+                entryMethod.Statements.Add(new CodeMethodInvokeExpression(methodRef,
+                    new CodeArgumentReferenceExpression(methodParamName)));
+
+                // Setup the main class next
+                var mainClass = new CodeTypeDeclaration($"{eType.Name}BuilderClass")
+                {
+                    IsClass = true,
+                    Attributes = MemberAttributes.Public
+                };
+                mainClass.Members.Add(entryMethod);
+                mainClass.Members.AddRange(BuildHelperMethods(bluePrints, settings, namespaces));
+
+                // Setup the imports
+                var codeNameSpaces = new List<CodeNamespaceImport>(namespaces.Count);
+                foreach (var ns in namespaces)
+                {
+                    if (!String.IsNullOrWhiteSpace(ns.Value))
+                    {
+                        codeNameSpaces.Add(settings.NamespaceAliasOptions.BuildNamespaceImport(
+                            ns.Key, ns.Value));
+                    }
+                    else
+                    {
+                        codeNameSpaces.Add(new CodeNamespaceImport(ns.Key));
+                    }
+                }
+                codeNameSpaces.Sort(new CodeNamespaceImportComparer(settings.NamespaceAliasOptions));
+
+                mainNamespace.Imports.AddRange(codeNameSpaces.ToArray());
+                mainNamespace.Types.Add(mainClass);
+
+                // Finish up
+                result.Namespaces.Add(mainNamespace);
+                return result;
+            }, token);
+        }
+
+        /// <summary>
+        /// Converts an <see cref="OpenXmlPart"/> into a <see cref="string"/> representation
+        /// of dotnet source code that can be compiled to build <paramref name="part"/>.
+        /// </summary>
+        /// <param name="part">
+        /// The <see cref="OpenXmlPart"/> object to generate source code for.
+        /// </param>
+        /// <param name="provider">
+        /// The <see cref="CodeDomProvider"/> object to create the resulting source code.
+        /// </param>
+        /// <param name="token">
+        /// Task cancellation token.
+        /// </param>
+        /// <returns>
+        /// A <see cref="string"/> representation of the source code generated by <paramref name="provider"/>
+        /// that could create <paramref name="part"/> when compiled.
+        /// </returns>
+        public static async Task<string> GenerateSourceCodeAsync(
+            this OpenXmlPart part,
+            CodeDomProvider provider,
+            CancellationToken token)
+        {
+            return await part.GenerateSourceCodeAsync(new DefaultSerializeSettings(), provider, token);
+        }
+
+        /// <summary>
+        /// Converts an <see cref="OpenXmlPart"/> into a <see cref="string"/> representation
+        /// of dotnet source code that can be compiled to build <paramref name="part"/>.
+        /// </summary>
+        /// <param name="part">
+        /// The <see cref="OpenXmlPart"/> object to generate source code for.
+        /// </param>
+        /// <param name="opts">
+        /// The <see cref="NamespaceAliasOptions"/> to apply to the resulting source code.
+        /// </param>
+        /// <param name="provider">
+        /// The <see cref="CodeDomProvider"/> object to create the resulting source code.
+        /// </param>
+        /// <param name="token">
+        /// Task cancellation token.
+        /// </param>
+        /// <returns>
+        /// A <see cref="string"/> representation of the source code generated by <paramref name="provider"/>
+        /// that could create <paramref name="part"/> when compiled.
+        /// </returns>
+        public static async Task<string> GenerateSourceCodeAsync(
+            this OpenXmlPart part,
+            NamespaceAliasOptions opts,
+            CodeDomProvider provider,
+            CancellationToken token)
+        {
+            return await part.GenerateSourceCodeAsync(
+                new DefaultSerializeSettings(opts), provider, token);
+        }
+
+        /// <summary>
+        /// Converts an <see cref="OpenXmlPart"/> into a <see cref="string"/> representation
+        /// of dotnet source code that can be compiled to build <paramref name="part"/>.
+        /// </summary>
+        /// <param name="part">
+        /// The <see cref="OpenXmlPart"/> object to generate source code for.
+        /// </param>
+        /// <param name="settings">
+        /// The <see cref="ISerializeSettings"/> to use during the code generation
+        /// process.
+        /// </param>
+        /// <param name="provider">
+        /// The <see cref="CodeDomProvider"/> object to create the resulting source code.
+        /// </param>
+        /// <param name="token">
+        /// Task cancellation token.
+        /// </param>
+        /// <returns>
+        /// A <see cref="string"/> representation of the source code generated by <paramref name="provider"/>
+        /// that could create <paramref name="part"/> when compiled.
+        /// </returns>
+        public static async Task<string> GenerateSourceCodeAsync(
+            this OpenXmlPart part,
+            ISerializeSettings settings,
+            CodeDomProvider provider,
+            CancellationToken token)
+        {
+            var codeString = new System.Text.StringBuilder();
+            var code = await part.GenerateSourceCodeAsync(settings, token);
 
             using (var sw = new StringWriter(codeString))
             {

@@ -5,9 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [0.5.0-beta] - TBD
+
+### Added
+- Added asynchronous versions of the `GenerateSourceCode(...)` extenson methods for
+  `OpenXmlElement`, `OpenXmlPart`, and `OpenXmlPackage` objects.
+
 ## [0.4.2-beta] - 2021-11-22
 
-## Changed
+### Changed
 - Refactored the variable name generation process to reuse existing variable names 
   when they become available.
 - *\[Breaking Change\]:* Added `UseUniqueVariableNames` property to `ISerializeSettings`
@@ -17,7 +23,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   of existing variable name.
 - Update DocumentFormat.OpenXml reference to 2.14.0.
 
-## Fixed
+### Fixed
 - Use the correct `CodeExpression` classes for the `XmlNodeType` parameter of the
   `OpenXmlMiscNode` constructor.
 

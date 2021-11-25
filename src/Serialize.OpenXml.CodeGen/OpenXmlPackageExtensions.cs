@@ -28,6 +28,8 @@ using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Serialize.OpenXml.CodeGen
 {
@@ -91,278 +93,11 @@ namespace Serialize.OpenXml.CodeGen
         /// </returns>
         public static CodeCompileUnit GenerateSourceCode(this OpenXmlPackage pkg, ISerializeSettings settings)
         {
-            const string pkgVarName = "pkg";
-            const string paramName = "pathToFile";
-            var result = new CodeCompileUnit();
-            var pkgType = pkg.GetType();
-            var pkgTypeName = pkgType.Name;
-            var partTypeCounts = new Dictionary<string, int>();
-            var namespaces = new Dictionary<string, string>();
-            var mainNamespace = new CodeNamespace(settings.NamespaceName);
-            var bluePrints = new OpenXmlPartBluePrintCollection();
-            CodeConditionStatement conditionStatement;
-            CodeMemberMethod entryPoint;
-            CodeMemberMethod createParts;
-            CodeTypeDeclaration mainClass;
-            CodeTryCatchFinallyStatement tryAndCatch;
-            CodeFieldReferenceExpression docTypeVarRef = null;
-            CodeStatementCollection relCodeStatements;
-            Type docTypeEnum;
-            string docTypeEnumVal;
-            KeyValuePair<string, Type> rootVarType;
-
-            // Set the var uniqueness indicator
-            TypeMonitor.UseUniqueVariableNames = settings.UseUniqueVariableNames;
-
-            // Add all initial namespace names first
-            if (!namespaces.ContainsKey("System"))
-            {
-                // Adding system first because the entry point for
-                // packages has a string parameter that does not use
-                // the 'string' keyword.
-                namespaces.Add("System", String.Empty);
-            }
-
-            // The OpenXmlDocument derived parts all contain a property called "DocumentType"
-            // but the property types differ depending on the derived part.  Need to get both
-            // the enum name of selected value to use as a parameter for the Create statement.
-            switch (pkg)
-            {
-                case PresentationDocument p:
-                    docTypeEnum = p.DocumentType.GetType();
-                    docTypeEnumVal = p.DocumentType.ToString();
-                    break;
-                case SpreadsheetDocument s:
-                    docTypeEnum = s.DocumentType.GetType();
-                    docTypeEnumVal = s.DocumentType.ToString();
-                    break;
-                case WordprocessingDocument w:
-                    docTypeEnum = w.DocumentType.GetType();
-                    docTypeEnumVal = w.DocumentType.ToString();
-                    break;
-                default:
-                    throw new ArgumentException("object is not a recognized OpenXmlPackage type.", nameof(pkg));
-            }
-
-            // Create the entry method
-            entryPoint = new CodeMemberMethod()
-            {
-                Name = "CreatePackage",
-                ReturnType = new CodeTypeReference(),
-                Attributes = MemberAttributes.Public | MemberAttributes.Final
-            };
-            entryPoint.Parameters.Add(
-                new CodeParameterDeclarationExpression(typeof(string).Name, paramName));
-
-            // Create package declaration expression first
-            entryPoint.Statements.Add(new CodeVariableDeclarationStatement(pkgTypeName, pkgVarName,
-                new CodePrimitiveExpression(null)));
-
-            // Add the required DocumentType parameter here, if available
-            if (docTypeEnum != null)
-            {
-                if (!namespaces.ContainsKey(docTypeEnum.Namespace))
-                {
-                    // All OpenXmlPackage objects are in the DocumentFormat.OpenXml.Packaging
-                    // namespace so there shouldn't be any collisions here.
-                    namespaces.Add(docTypeEnum.Namespace, String.Empty);
-                }
-
-                var simpleFieldRef = new CodeVariableReferenceExpression(
-                    docTypeEnum.GetObjectTypeName(namespaces, settings.NamespaceAliasOptions.Order));
-                docTypeVarRef = new CodeFieldReferenceExpression(simpleFieldRef, docTypeEnumVal);
-            }
-
-            // initialize package var
-            var pkgCreateMethod = new CodeMethodReferenceExpression(
-                new CodeTypeReferenceExpression(pkgTypeName),
-                "Create");
-            var pkgCreateInvoke = new CodeMethodInvokeExpression(pkgCreateMethod,
-                new CodeArgumentReferenceExpression(paramName),
-                docTypeVarRef);
-            var initializePkg = new CodeAssignStatement(
-                new CodeVariableReferenceExpression(pkgVarName),
-                pkgCreateInvoke);
-
-            // Call CreateParts method
-            var partsCreateMethod = new CodeMethodReferenceExpression(
-                new CodeThisReferenceExpression(),
-                "CreateParts");
-            var partsCreateInvoke = new CodeMethodInvokeExpression(
-                partsCreateMethod,
-                new CodeDirectionExpression(FieldDirection.Ref,
-                    new CodeVariableReferenceExpression(pkgVarName)));
-
-            // Clean up pkg var
-            var pkgDisposeMethod = new CodeMethodReferenceExpression(
-                new CodeVariableReferenceExpression(pkgVarName),
-                "Dispose");
-            var pkgDisposeInvoke = new CodeMethodInvokeExpression(
-                pkgDisposeMethod);
-
-            // Setup the try/catch statement to properly initialize the pkg var
-            tryAndCatch = new CodeTryCatchFinallyStatement();
-
-            // Try statements
-            tryAndCatch.TryStatements.Add(initializePkg);
-            tryAndCatch.TryStatements.AddBlankLine();
-            tryAndCatch.TryStatements.Add(partsCreateInvoke);
-
-            // If statement to ensure pkgVarName is not null before trying to dispose
-            conditionStatement = new CodeConditionStatement(
-                new CodeBinaryOperatorExpression(
-                    new CodeVariableReferenceExpression(pkgVarName),
-                    CodeBinaryOperatorType.IdentityInequality,
-                    new CodePrimitiveExpression(null)));
-
-            conditionStatement.TrueStatements.Add(pkgDisposeInvoke);
-
-            // Finally statements
-            tryAndCatch.FinallyStatements.Add(conditionStatement);
-            entryPoint.Statements.Add(tryAndCatch);
-
-            // Create the CreateParts method
-            createParts = new CodeMemberMethod()
-            {
-                Name = "CreateParts",
-                ReturnType = new CodeTypeReference(),
-                Attributes = MemberAttributes.Private | MemberAttributes.Final
-            };
-            createParts.Parameters.Add(new CodeParameterDeclarationExpression(pkgTypeName, pkgVarName)
-                { Direction = FieldDirection.Ref });
-
-            relCodeStatements = pkg.GenerateRelationshipCodeStatements(pkgVarName);
-            if (relCodeStatements.Count > 0)
-            {
-                createParts.Statements.AddRange(relCodeStatements);
-            }
-
-            // Add all of the child part references here
-            if (pkg.Parts != null)
-            {
-                var customNewPartTypes = new Type[] { typeof(PresentationPart), typeof(WorkbookPart), typeof(MainDocumentPart) };
-                OpenXmlPartBluePrint bpTemp;
-                CodeMethodReferenceExpression referenceExpression;
-                CodeMethodInvokeExpression invokeExpression;
-                CodeMethodReferenceExpression methodReference;
-                Type currentPartType;
-                string varName = null;
-                string initMethodName = null;
-                string mainPartTypeName;
-
-                foreach (var pair in pkg.Parts)
-                {
-                    // Need special handling rules for WorkbookPart, MainDocumentPart, and PresentationPart
-                    // objects.  They cannot be created using the usual "AddNewPart" methods, unfortunately.
-                    currentPartType = pair.OpenXmlPart.GetType();
-                    if (customNewPartTypes.Contains(currentPartType))
-                    {
-                        if (!namespaces.ContainsKey(currentPartType.Namespace))
-                        {
-                            // All OpenXmlPart objects are in the DocumentFormat.OpenXml.Packaging
-                            // namespace so there shouldn't be any collisions here.
-                            namespaces.Add(currentPartType.Namespace, String.Empty);
-                        }
-                        mainPartTypeName = currentPartType.Name;
-                        if (pair.OpenXmlPart is PresentationPart)
-                        {
-                            varName = "presentationPart";
-                            initMethodName = "AddPresentationPart";
-                        }
-                        else if (pair.OpenXmlPart is WorkbookPart)
-                        {
-                            varName = "workbookPart";
-                            initMethodName = "AddWorkbookPart";
-                        }
-                        else if (pair.OpenXmlPart is MainDocumentPart)
-                        {
-                            varName = "mainDocumentPart";
-                            initMethodName = "AddMainDocumentPart";
-                        }
-                        rootVarType = new KeyValuePair<string, Type>(varName, currentPartType);
-
-                        // Setup the blueprint
-                        bpTemp = new OpenXmlPartBluePrint(pair.OpenXmlPart, varName);
-
-                        // Setup the add new part statement for the current OpenXmlPart object
-                        referenceExpression = new CodeMethodReferenceExpression(
-                            new CodeArgumentReferenceExpression(pkgVarName), initMethodName);
-
-                        invokeExpression = new CodeMethodInvokeExpression(referenceExpression);
-
-                        createParts.Statements.Add(new CodeVariableDeclarationStatement(mainPartTypeName, varName, invokeExpression));
-
-                        // Add the call to the method to populate the current OpenXmlPart object
-                        methodReference = new CodeMethodReferenceExpression(new CodeThisReferenceExpression(), bpTemp.MethodName);
-                        createParts.Statements.Add(new CodeMethodInvokeExpression(methodReference,
-                            new CodeDirectionExpression(FieldDirection.Ref, new CodeVariableReferenceExpression(varName))));
-
-                        // Add the current main part to the collection of blueprints to ensure that the appropriate 'Generate*'
-                        // method is added to the collection of helper methods.
-                        bluePrints.Add(bpTemp);
-
-                        relCodeStatements = pair.OpenXmlPart.GenerateRelationshipCodeStatements(varName);
-                        if (relCodeStatements.Count > 0)
-                        {
-                            createParts.Statements.AddRange(relCodeStatements);
-                        }
-
-                        // Add a blank line for clarity
-                        createParts.Statements.AddBlankLine();
-
-                        // now create the child parts for the current one an continue the loop to avoid creating
-                        // an additional invalid 'AddNewPart' method for the current main part.
-                        foreach (var child in pair.OpenXmlPart.Parts)
-                        {
-                            createParts.Statements.AddRange(
-                                OpenXmlPartExtensions.BuildEntryMethodCodeStatements(
-                                    child, settings, partTypeCounts, namespaces, bluePrints, rootVarType));
-                        }
-                        continue;
-                    }
-
-                    rootVarType = new KeyValuePair<string, Type>(pkgVarName, pkgType);
-                    createParts.Statements.AddRange(
-                        OpenXmlPartExtensions.BuildEntryMethodCodeStatements(
-                            pair, settings, partTypeCounts, namespaces, bluePrints, rootVarType));
-                }
-            }
-
-            // Setup the main class next
-            mainClass = new CodeTypeDeclaration($"{pkgTypeName}BuilderClass")
-            {
-                IsClass = true,
-                Attributes = MemberAttributes.Public
-            };
-
-            // Setup the main class members
-            mainClass.Members.Add(entryPoint);
-            mainClass.Members.Add(createParts);
-            mainClass.Members.AddRange(OpenXmlPartExtensions.BuildHelperMethods
-                (bluePrints, settings, namespaces));
-
-            // Setup the imports
-            var codeNameSpaces = new List<CodeNamespaceImport>(namespaces.Count);
-            foreach (var ns in namespaces)
-            {
-                if (!String.IsNullOrWhiteSpace(ns.Value))
-                {
-                    codeNameSpaces.Add(settings.NamespaceAliasOptions.BuildNamespaceImport(
-                        ns.Key, ns.Value));
-                }
-                else
-                {
-                    codeNameSpaces.Add(new CodeNamespaceImport(ns.Key));
-                }
-            }
-            codeNameSpaces.Sort(new CodeNamespaceImportComparer(settings.NamespaceAliasOptions));
-
-            mainNamespace.Imports.AddRange(codeNameSpaces.ToArray());
-            mainNamespace.Types.Add(mainClass);
-
-            // Finish up
-            result.Namespaces.Add(mainNamespace);
-            return result;
+            return DefaultSerializeSettings.TaskIndustry.StartNew(
+                () => pkg.GenerateSourceCodeAsync(settings, CancellationToken.None))
+                .Unwrap()
+                .GetAwaiter()
+                .GetResult();
         }
 
         /// <summary>
@@ -428,6 +163,449 @@ namespace Serialize.OpenXml.CodeGen
         {
             var codeString = new System.Text.StringBuilder();
             var code = pkg.GenerateSourceCode(settings);
+
+            using (var sw = new StringWriter(codeString))
+            {
+                provider.GenerateCodeFromCompileUnit(code, sw,
+                    new CodeGeneratorOptions() { BracingStyle = "C" });
+            }
+            return codeString.ToString().RemoveOutputHeaders().Trim();
+        }
+
+        /// <summary>
+        /// Converts an <see cref="OpenXmlPackage"/> into a CodeDom object that can be used
+        /// to build code in a given .NET language to build the referenced <paramref name="pkg"/>.
+        /// </summary>
+        /// <param name="pkg">
+        /// The <see cref="OpenXmlPackage"/> object to generate source code for.
+        /// </param>
+        /// <param name="token">
+        /// Task cancellation token.
+        /// </param>
+        /// <returns>
+        /// A new <see cref="CodeCompileUnit"/> containing the instructions to build
+        /// the referenced <see cref="OpenXmlPackage"/>.
+        /// </returns>
+        public static async Task<CodeCompileUnit> GenerateSourceCodeAsync(
+            this OpenXmlPackage pkg,
+            CancellationToken token)
+        {
+            return await pkg.GenerateSourceCodeAsync(
+                new DefaultSerializeSettings(),
+                token);
+        }
+
+        /// <summary>
+        /// Converts an <see cref="OpenXmlPackage"/> into a CodeDom object that can be used
+        /// to build code in a given .NET language to build the referenced <paramref name="pkg"/>.
+        /// </summary>
+        /// <param name="pkg">
+        /// The <see cref="OpenXmlPackage"/> object to generate source code for.
+        /// </param>
+        /// <param name="opts">
+        /// The <see cref="NamespaceAliasOptions"/> to apply to the resulting source code.
+        /// </param>
+        /// <param name="token">
+        /// Task cancellation token.
+        /// </param>
+        /// <returns>
+        /// A new <see cref="CodeCompileUnit"/> containing the instructions to build
+        /// the referenced <see cref="OpenXmlPackage"/>.
+        /// </returns>
+        public static async Task<CodeCompileUnit> GenerateSourceCodeAsync(
+            this OpenXmlPackage pkg,
+            NamespaceAliasOptions opts,
+            CancellationToken token)
+        {
+            return await pkg.GenerateSourceCodeAsync(new DefaultSerializeSettings(opts), token);
+        }
+
+        /// <summary>
+        /// Converts an <see cref="OpenXmlPackage"/> into a CodeDom object that can be used
+        /// to build code in a given .NET language to build the referenced <paramref name="pkg"/>.
+        /// </summary>
+        /// <param name="pkg">
+        /// The <see cref="OpenXmlPackage"/> object to generate source code for.
+        /// </param>
+        /// <param name="settings">
+        /// The <see cref="ISerializeSettings"/> to use during the code generation
+        /// process.
+        /// </param>
+        /// <param name="token">
+        /// Task cancellation token.
+        /// </param>
+        /// <returns>
+        /// A new <see cref="CodeCompileUnit"/> containing the instructions to build
+        /// the referenced <see cref="OpenXmlPackage"/>.
+        /// </returns>
+        public static async Task<CodeCompileUnit> GenerateSourceCodeAsync(
+            this OpenXmlPackage pkg,
+            ISerializeSettings settings,
+            CancellationToken token)
+        {
+            const string pkgVarName = "pkg";
+            const string paramName = "pathToFile";
+
+            return await Task.Run(() =>
+            {
+                var result = new CodeCompileUnit();
+                var pkgType = pkg.GetType();
+                var pkgTypeName = pkgType.Name;
+                var partTypeCounts = new Dictionary<string, int>();
+                var namespaces = new Dictionary<string, string>();
+                var mainNamespace = new CodeNamespace(settings.NamespaceName);
+                var bluePrints = new OpenXmlPartBluePrintCollection();
+                CodeConditionStatement conditionStatement;
+                CodeMemberMethod entryPoint;
+                CodeMemberMethod createParts;
+                CodeTypeDeclaration mainClass;
+                CodeTryCatchFinallyStatement tryAndCatch;
+                CodeFieldReferenceExpression docTypeVarRef = null;
+                CodeStatementCollection relCodeStatements;
+                Type docTypeEnum;
+                string docTypeEnumVal;
+                KeyValuePair<string, Type> rootVarType;
+
+                // Set the var uniqueness indicator
+                TypeMonitor.UseUniqueVariableNames = settings.UseUniqueVariableNames;
+
+                // Add all initial namespace names first
+                if (!namespaces.ContainsKey("System"))
+                {
+                    // Adding system first because the entry point for
+                    // packages has a string parameter that does not use
+                    // the 'string' keyword.
+                    namespaces.Add("System", String.Empty);
+                }
+
+                // The OpenXmlDocument derived parts all contain a property called "DocumentType"
+                // but the property types differ depending on the derived part.  Need to get both
+                // the enum name of selected value to use as a parameter for the Create statement.
+                switch (pkg)
+                {
+                    case PresentationDocument p:
+                        docTypeEnum = p.DocumentType.GetType();
+                        docTypeEnumVal = p.DocumentType.ToString();
+                        break;
+                    case SpreadsheetDocument s:
+                        docTypeEnum = s.DocumentType.GetType();
+                        docTypeEnumVal = s.DocumentType.ToString();
+                        break;
+                    case WordprocessingDocument w:
+                        docTypeEnum = w.DocumentType.GetType();
+                        docTypeEnumVal = w.DocumentType.ToString();
+                        break;
+                    default:
+                        throw new ArgumentException("object is not a recognized OpenXmlPackage type.", nameof(pkg));
+                }
+
+                // Create the entry method
+                entryPoint = new CodeMemberMethod()
+                {
+                    Name = "CreatePackage",
+                    ReturnType = new CodeTypeReference(),
+                    Attributes = MemberAttributes.Public | MemberAttributes.Final
+                };
+                entryPoint.Parameters.Add(
+                    new CodeParameterDeclarationExpression(typeof(string).Name, paramName));
+
+                // Create package declaration expression first
+                entryPoint.Statements.Add(new CodeVariableDeclarationStatement(pkgTypeName, pkgVarName,
+                    new CodePrimitiveExpression(null)));
+
+                // Add the required DocumentType parameter here, if available
+                if (docTypeEnum != null)
+                {
+                    if (!namespaces.ContainsKey(docTypeEnum.Namespace))
+                    {
+                        // All OpenXmlPackage objects are in the DocumentFormat.OpenXml.Packaging
+                        // namespace so there shouldn't be any collisions here.
+                        namespaces.Add(docTypeEnum.Namespace, String.Empty);
+                    }
+
+                    var simpleFieldRef = new CodeVariableReferenceExpression(
+                        docTypeEnum.GetObjectTypeName(namespaces, settings.NamespaceAliasOptions.Order));
+                    docTypeVarRef = new CodeFieldReferenceExpression(simpleFieldRef, docTypeEnumVal);
+                }
+
+                // initialize package var
+                var pkgCreateMethod = new CodeMethodReferenceExpression(
+                    new CodeTypeReferenceExpression(pkgTypeName),
+                    "Create");
+                var pkgCreateInvoke = new CodeMethodInvokeExpression(pkgCreateMethod,
+                    new CodeArgumentReferenceExpression(paramName),
+                    docTypeVarRef);
+                var initializePkg = new CodeAssignStatement(
+                    new CodeVariableReferenceExpression(pkgVarName),
+                    pkgCreateInvoke);
+
+                // Call CreateParts method
+                var partsCreateMethod = new CodeMethodReferenceExpression(
+                    new CodeThisReferenceExpression(),
+                    "CreateParts");
+                var partsCreateInvoke = new CodeMethodInvokeExpression(
+                    partsCreateMethod,
+                    new CodeDirectionExpression(FieldDirection.Ref,
+                        new CodeVariableReferenceExpression(pkgVarName)));
+
+                // Clean up pkg var
+                var pkgDisposeMethod = new CodeMethodReferenceExpression(
+                    new CodeVariableReferenceExpression(pkgVarName),
+                    "Dispose");
+                var pkgDisposeInvoke = new CodeMethodInvokeExpression(
+                    pkgDisposeMethod);
+
+                // Setup the try/catch statement to properly initialize the pkg var
+                tryAndCatch = new CodeTryCatchFinallyStatement();
+
+                // Try statements
+                tryAndCatch.TryStatements.Add(initializePkg);
+                tryAndCatch.TryStatements.AddBlankLine();
+                tryAndCatch.TryStatements.Add(partsCreateInvoke);
+
+                // If statement to ensure pkgVarName is not null before trying to dispose
+                conditionStatement = new CodeConditionStatement(
+                    new CodeBinaryOperatorExpression(
+                        new CodeVariableReferenceExpression(pkgVarName),
+                        CodeBinaryOperatorType.IdentityInequality,
+                        new CodePrimitiveExpression(null)));
+
+                conditionStatement.TrueStatements.Add(pkgDisposeInvoke);
+
+                // Finally statements
+                tryAndCatch.FinallyStatements.Add(conditionStatement);
+                entryPoint.Statements.Add(tryAndCatch);
+
+                // Create the CreateParts method
+                createParts = new CodeMemberMethod()
+                {
+                    Name = "CreateParts",
+                    ReturnType = new CodeTypeReference(),
+                    Attributes = MemberAttributes.Private | MemberAttributes.Final
+                };
+                createParts.Parameters.Add(new CodeParameterDeclarationExpression(pkgTypeName, pkgVarName)
+                { Direction = FieldDirection.Ref });
+
+                relCodeStatements = pkg.GenerateRelationshipCodeStatements(pkgVarName);
+                if (relCodeStatements.Count > 0)
+                {
+                    createParts.Statements.AddRange(relCodeStatements);
+                }
+
+                // Add all of the child part references here
+                if (pkg.Parts != null)
+                {
+                    var customNewPartTypes = new Type[] { typeof(PresentationPart), typeof(WorkbookPart), typeof(MainDocumentPart) };
+                    OpenXmlPartBluePrint bpTemp;
+                    CodeMethodReferenceExpression referenceExpression;
+                    CodeMethodInvokeExpression invokeExpression;
+                    CodeMethodReferenceExpression methodReference;
+                    Type currentPartType;
+                    string varName = null;
+                    string initMethodName = null;
+                    string mainPartTypeName;
+
+                    foreach (var pair in pkg.Parts)
+                    {
+                        // Need special handling rules for WorkbookPart, MainDocumentPart, and PresentationPart
+                        // objects.  They cannot be created using the usual "AddNewPart" methods, unfortunately.
+                        currentPartType = pair.OpenXmlPart.GetType();
+                        if (customNewPartTypes.Contains(currentPartType))
+                        {
+                            if (!namespaces.ContainsKey(currentPartType.Namespace))
+                            {
+                                // All OpenXmlPart objects are in the DocumentFormat.OpenXml.Packaging
+                                // namespace so there shouldn't be any collisions here.
+                                namespaces.Add(currentPartType.Namespace, String.Empty);
+                            }
+                            mainPartTypeName = currentPartType.Name;
+                            if (pair.OpenXmlPart is PresentationPart)
+                            {
+                                varName = "presentationPart";
+                                initMethodName = "AddPresentationPart";
+                            }
+                            else if (pair.OpenXmlPart is WorkbookPart)
+                            {
+                                varName = "workbookPart";
+                                initMethodName = "AddWorkbookPart";
+                            }
+                            else if (pair.OpenXmlPart is MainDocumentPart)
+                            {
+                                varName = "mainDocumentPart";
+                                initMethodName = "AddMainDocumentPart";
+                            }
+                            rootVarType = new KeyValuePair<string, Type>(varName, currentPartType);
+
+                            // Setup the blueprint
+                            bpTemp = new OpenXmlPartBluePrint(pair.OpenXmlPart, varName);
+
+                            // Setup the add new part statement for the current OpenXmlPart object
+                            referenceExpression = new CodeMethodReferenceExpression(
+                                new CodeArgumentReferenceExpression(pkgVarName), initMethodName);
+
+                            invokeExpression = new CodeMethodInvokeExpression(referenceExpression);
+
+                            createParts.Statements.Add(new CodeVariableDeclarationStatement(mainPartTypeName, varName, invokeExpression));
+
+                            // Add the call to the method to populate the current OpenXmlPart object
+                            methodReference = new CodeMethodReferenceExpression(new CodeThisReferenceExpression(), bpTemp.MethodName);
+                            createParts.Statements.Add(new CodeMethodInvokeExpression(methodReference,
+                                new CodeDirectionExpression(FieldDirection.Ref, new CodeVariableReferenceExpression(varName))));
+
+                            // Add the current main part to the collection of blueprints to ensure that the appropriate 'Generate*'
+                            // method is added to the collection of helper methods.
+                            bluePrints.Add(bpTemp);
+
+                            relCodeStatements = pair.OpenXmlPart.GenerateRelationshipCodeStatements(varName);
+                            if (relCodeStatements.Count > 0)
+                            {
+                                createParts.Statements.AddRange(relCodeStatements);
+                            }
+
+                            // Add a blank line for clarity
+                            createParts.Statements.AddBlankLine();
+
+                            // now create the child parts for the current one an continue the loop to avoid creating
+                            // an additional invalid 'AddNewPart' method for the current main part.
+                            foreach (var child in pair.OpenXmlPart.Parts)
+                            {
+                                createParts.Statements.AddRange(
+                                    OpenXmlPartExtensions.BuildEntryMethodCodeStatements(
+                                        child, settings, partTypeCounts, namespaces, bluePrints, rootVarType));
+                            }
+                            continue;
+                        }
+
+                        rootVarType = new KeyValuePair<string, Type>(pkgVarName, pkgType);
+                        createParts.Statements.AddRange(
+                            OpenXmlPartExtensions.BuildEntryMethodCodeStatements(
+                                pair, settings, partTypeCounts, namespaces, bluePrints, rootVarType));
+                    }
+                }
+
+                // Setup the main class next
+                mainClass = new CodeTypeDeclaration($"{pkgTypeName}BuilderClass")
+                {
+                    IsClass = true,
+                    Attributes = MemberAttributes.Public
+                };
+
+                // Setup the main class members
+                mainClass.Members.Add(entryPoint);
+                mainClass.Members.Add(createParts);
+                mainClass.Members.AddRange(OpenXmlPartExtensions.BuildHelperMethods
+                    (bluePrints, settings, namespaces));
+
+                // Setup the imports
+                var codeNameSpaces = new List<CodeNamespaceImport>(namespaces.Count);
+                foreach (var ns in namespaces)
+                {
+                    if (!String.IsNullOrWhiteSpace(ns.Value))
+                    {
+                        codeNameSpaces.Add(settings.NamespaceAliasOptions.BuildNamespaceImport(
+                            ns.Key, ns.Value));
+                    }
+                    else
+                    {
+                        codeNameSpaces.Add(new CodeNamespaceImport(ns.Key));
+                    }
+                }
+                codeNameSpaces.Sort(new CodeNamespaceImportComparer(settings.NamespaceAliasOptions));
+
+                mainNamespace.Imports.AddRange(codeNameSpaces.ToArray());
+                mainNamespace.Types.Add(mainClass);
+
+                // Finish up
+                result.Namespaces.Add(mainNamespace);
+                return result;
+            }, token);
+        }
+
+        /// <summary>
+        /// Converts an <see cref="OpenXmlPackage"/> into a <see cref="string"/> representation
+        /// of dotnet source code that can be compiled to build <paramref name="pkg"/>.
+        /// </summary>
+        /// <param name="pkg">
+        /// The <see cref="OpenXmlPackage"/> object to generate source code for.
+        /// </param>
+        /// <param name="provider">
+        /// The <see cref="CodeDomProvider"/> object to create the resulting source code.
+        /// </param>
+        /// <param name="token">
+        /// Task cancellation token.
+        /// </param>
+        /// <returns>
+        /// A <see cref="string"/> representation of the source code generated by <paramref name="provider"/>
+        /// that could create <paramref name="pkg"/> when compiled.
+        /// </returns>
+        public static async Task<string> GenerateSourceCodeAsync(
+            this OpenXmlPackage pkg,
+            CodeDomProvider provider,
+            CancellationToken token)
+        {
+            return await pkg.GenerateSourceCodeAsync(
+                new DefaultSerializeSettings(), provider, token);
+        }
+
+        /// <summary>
+        /// Converts an <see cref="OpenXmlPackage"/> into a <see cref="string"/> representation
+        /// of dotnet source code that can be compiled to build <paramref name="pkg"/>.
+        /// </summary>
+        /// <param name="pkg">
+        /// The <see cref="OpenXmlPackage"/> object to generate source code for.
+        /// </param>
+        /// <param name="opts">
+        /// The <see cref="NamespaceAliasOptions"/> to apply to the resulting source code.
+        /// </param>
+        /// <param name="provider">
+        /// The <see cref="CodeDomProvider"/> object to create the resulting source code.
+        /// </param>
+        /// <param name="token">
+        /// Task cancellation token.
+        /// </param>
+        /// <returns>
+        /// A <see cref="string"/> representation of the source code generated by <paramref name="provider"/>
+        /// that could create <paramref name="pkg"/> when compiled.
+        /// </returns>
+        public static async Task<string> GenerateSourceCodeAsync(
+            this OpenXmlPackage pkg,
+            NamespaceAliasOptions opts,
+            CodeDomProvider provider,
+            CancellationToken token)
+        {
+            return await pkg.GenerateSourceCodeAsync(
+                new DefaultSerializeSettings(opts), provider, token);
+        }
+
+        /// <summary>
+        /// Converts an <see cref="OpenXmlPackage"/> into a <see cref="string"/> representation
+        /// of dotnet source code that can be compiled to build <paramref name="pkg"/>.
+        /// </summary>
+        /// <param name="pkg">
+        /// The <see cref="OpenXmlPackage"/> object to generate source code for.
+        /// </param>
+        /// <param name="settings">
+        /// The <see cref="ISerializeSettings"/> to use during the code generation
+        /// process.
+        /// </param>
+        /// <param name="provider">
+        /// The <see cref="CodeDomProvider"/> object to create the resulting source code.
+        /// </param>
+        /// <param name="token">
+        /// Task cancellation token.
+        /// </param>
+        /// <returns>
+        /// A <see cref="string"/> representation of the source code generated by <paramref name="provider"/>
+        /// that could create <paramref name="pkg"/> when compiled.
+        /// </returns>
+        public static async Task<string> GenerateSourceCodeAsync(
+            this OpenXmlPackage pkg,
+            ISerializeSettings settings,
+            CodeDomProvider provider,
+            CancellationToken token)
+        {
+            var codeString = new System.Text.StringBuilder();
+            var code = await pkg.GenerateSourceCodeAsync(settings, token);
 
             using (var sw = new StringWriter(codeString))
             {

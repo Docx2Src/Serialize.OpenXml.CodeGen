@@ -23,6 +23,7 @@ DEALINGS IN THE SOFTWARE.
 using System;
 using System.Collections.Generic;
 using System.Xml;
+using System.Threading.Tasks;
 
 namespace Serialize.OpenXml.CodeGen
 {
@@ -32,6 +33,23 @@ namespace Serialize.OpenXml.CodeGen
     /// </summary>
     internal sealed class DefaultSerializeSettings : ISerializeSettings
     {
+        #region Internal Static Fields
+
+        /// <summary>
+        /// <see cref="TaskFactory"/> object used to call the async methods in
+        /// a synchronous fashion.
+        /// </summary>
+        /// <remarks>
+        /// This is being used in order to avoid big breaking changes.
+        /// </remarks>
+        internal static readonly TaskFactory TaskIndustry = new TaskFactory(
+            System.Threading.CancellationToken.None,
+            TaskCreationOptions.None,
+            TaskContinuationOptions.None,
+            TaskScheduler.Default);
+
+        #endregion
+
         #region Public Constructors
 
         /// <summary>
