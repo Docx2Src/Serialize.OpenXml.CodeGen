@@ -68,7 +68,7 @@ namespace Serialize.OpenXml.CodeGen
         /// purposes.
         /// </param>
         /// <param name="namespaces">
-        /// Collection <see cref="IDictionary{TKey, TValue}"/> used to keep track of all openxml
+        /// <see cref="IDictionary{TKey, TValue}"/> used to keep track of all openxml
         /// namespaces used during the process.
         /// </param>
         /// <param name="blueprints">
@@ -248,7 +248,7 @@ namespace Serialize.OpenXml.CodeGen
         /// process.
         /// </param>
         /// <param name="namespaces">
-        /// <see cref="ISet{T}"/> collection used to keep track of all openxml namespaces
+        /// <see cref="IDictionary{TKey, TValue}"/> collection used to keep track of all openxml namespaces
         /// used during the process.
         /// </param>
         /// <returns>
@@ -343,7 +343,7 @@ namespace Serialize.OpenXml.CodeGen
         /// The <see cref="OpenXmlPart"/> object to build the source code for.
         /// </param>
         /// <param name="namespaces">
-        /// <see cref="ISet{T}">Set</see> of <see cref="String"/> values used to keep
+        /// <see cref="IDictionary{TKey, TValue}"/> values used to keep
         /// track of all openxml namespaces used during the process.
         /// </param>
         /// <returns>
