@@ -21,9 +21,6 @@ DEALINGS IN THE SOFTWARE.
 */
 
 using System;
-using System.CodeDom;
-using DocumentFormat.OpenXml;
-using DocumentFormat.OpenXml.Packaging;
 
 namespace Serialize.OpenXml.CodeGen
 {

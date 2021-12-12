@@ -79,6 +79,9 @@ namespace Serialize.OpenXml.CodeGen
         /// The root variable name and <see cref="Type"/> to use when building code
         /// statements to create new <see cref="OpenXmlPart"/> objects.
         /// </param>
+        /// <param name="token">
+        /// Task cancellation token from the parent method.
+        /// </param>
         /// <returns>
         /// A collection of code statements and expressions that could be used to generate
         /// a new <paramref name="part"/> object from code.
@@ -89,7 +92,8 @@ namespace Serialize.OpenXml.CodeGen
             IDictionary<string, int> typeCounts,
             IDictionary<string, string> namespaces,
             OpenXmlPartBluePrintCollection blueprints,
-            KeyValuePair<string, Type> rootVar)
+            KeyValuePair<string, Type> rootVar,
+            CancellationToken token)
         {
             // Argument validation
             if (part is null) throw new ArgumentNullException(nameof(part));
@@ -98,13 +102,19 @@ namespace Serialize.OpenXml.CodeGen
             if (String.IsNullOrWhiteSpace(rootVar.Key)) throw new ArgumentNullException(nameof(rootVar.Key));
             bool hasHandlers = settings?.Handlers != null;
 
+            // Check to see if the task has been cancelled.
+            if (token.IsCancellationRequested)
+            {
+                token.ThrowIfCancellationRequested();
+            }
+
             // Use the custom handler methods if present and provide actual code
             if (hasHandlers && settings.Handlers.TryGetValue(part.OpenXmlPart.GetType(), out IOpenXmlHandler h))
             {
                 if (h is IOpenXmlPartHandler partHandler)
                 {
                     var customStatements = partHandler.BuildEntryMethodCodeStatements(
-                        part, settings, typeCounts, namespaces, blueprints, rootVar);
+                        part, settings, typeCounts, namespaces, blueprints, rootVar, token);
 
                     if (customStatements != null) return customStatements;
                 }
@@ -116,6 +126,13 @@ namespace Serialize.OpenXml.CodeGen
             CodeMethodReferenceExpression referenceExpression;
             CodeMethodInvokeExpression invokeExpression;
             CodeMethodReferenceExpression methodReference;
+
+            // Check to see if the task has been cancelled.
+            if (token.IsCancellationRequested)
+            {
+                result.Clear();
+                token.ThrowIfCancellationRequested();
+            }
 
             // Make sure that the namespace for the current part is captured
             if (!namespaces.ContainsKey(partType.Namespace))
@@ -208,6 +225,13 @@ namespace Serialize.OpenXml.CodeGen
 
                 foreach (var p in bpTemp.Part.Parts)
                 {
+                    // Check to see if the task has been cancelled.
+                    if (token.IsCancellationRequested)
+                    {
+                        result.Clear();
+                        token.ThrowIfCancellationRequested();
+                    }
+
                     // If the current child object has already been created, simply add a reference to
                     // said object using the AddPart method.
                     if (blueprints.Contains(p.OpenXmlPart.Uri))
@@ -228,7 +252,7 @@ namespace Serialize.OpenXml.CodeGen
 
                     // If this is a new part, call this method with the current part's details
                     result.AddRange(BuildEntryMethodCodeStatements(p, settings, typeCounts, namespaces, blueprints,
-                        new KeyValuePair<string, Type>(varName, partType)));
+                        new KeyValuePair<string, Type>(varName, partType), token));
                 }
             }
 
@@ -251,6 +275,9 @@ namespace Serialize.OpenXml.CodeGen
         /// <see cref="IDictionary{TKey, TValue}"/> collection used to keep track of all openxml namespaces
         /// used during the process.
         /// </param>
+        /// <param name="token">
+        /// Task cancellation token from the parent method.
+        /// </param>
         /// <returns>
         /// A collection of code helper statements and expressions that could be used to generate a new
         /// <see cref="OpenXmlPart"/> object from code.
@@ -258,7 +285,8 @@ namespace Serialize.OpenXml.CodeGen
         public static CodeTypeMemberCollection BuildHelperMethods(
             OpenXmlPartBluePrintCollection bluePrints,
             ISerializeSettings settings,
-            IDictionary<string, string> namespaces)
+            IDictionary<string, string> namespaces,
+            CancellationToken token)
         {
             if (bluePrints == null) throw new ArgumentNullException(nameof(bluePrints));
             var result = new CodeTypeMemberCollection();
@@ -269,13 +297,20 @@ namespace Serialize.OpenXml.CodeGen
 
             foreach (var bp in bluePrints)
             {
+                // Check to see if the task has been cancelled.
+                if (token.IsCancellationRequested)
+                {
+                    result.Clear();
+                    token.ThrowIfCancellationRequested();
+                }
+
                 // Implement the custom helper if present
                 if (hasHandlers && settings.Handlers.TryGetValue(bp.PartType, out IOpenXmlHandler h))
                 {
                     if (h is IOpenXmlPartHandler partHandler)
                     {
                         method = partHandler.BuildHelperMethod(
-                            bp.Part, bp.MethodName, settings, namespaces);
+                            bp.Part, bp.MethodName, settings, namespaces, token);
 
                         if (method != null)
                         {
@@ -310,7 +345,7 @@ namespace Serialize.OpenXml.CodeGen
                     // Build the element details of the requested part for the current method
                     method.Statements.AddRange(
                         bp.Part.RootElement.BuildCodeStatements(
-                            settings, localTypes, namespaces, out string rootElementVar));
+                            settings, localTypes, namespaces, token, out string rootElementVar));
 
                     // Now finish up the current method by assigning the OpenXmlElement code statements
                     // back to the appropriate property of the part parameter
@@ -318,6 +353,13 @@ namespace Serialize.OpenXml.CodeGen
                     {
                         foreach (var paramProp in bp.Part.GetType().GetProperties())
                         {
+                            // Check to see if the task has been cancelled.
+                            if (token.IsCancellationRequested)
+                            {
+                                result.Clear();
+                                token.ThrowIfCancellationRequested();
+                            }
+
                             if (paramProp.PropertyType == rootElementType)
                             {
                                 var varRef = new CodeVariableReferenceExpression(rootElementVar);
@@ -651,6 +693,12 @@ namespace Serialize.OpenXml.CodeGen
                     new CodeParameterDeclarationExpression(partTypeName, methodParamName)
                     { Direction = FieldDirection.Ref });
 
+                // Check to see if the task has been cancelled.
+                if (token.IsCancellationRequested)
+                {
+                    token.ThrowIfCancellationRequested();
+                }
+
                 var relCodeStatements = part.GenerateRelationshipCodeStatements(new CodeThisReferenceExpression());
                 if (relCodeStatements.Count > 0)
                 {
@@ -663,8 +711,14 @@ namespace Serialize.OpenXml.CodeGen
                     var rootPartPair = new KeyValuePair<string, Type>(methodParamName, eType);
                     foreach (var pair in part.Parts)
                     {
+                        // Check to see if the task has been cancelled.
+                        if (token.IsCancellationRequested)
+                        {
+                            token.ThrowIfCancellationRequested();
+                        }
+
                         entryMethod.Statements.AddRange(BuildEntryMethodCodeStatements(
-                            pair, settings, partTypeCounts, namespaces, bluePrints, rootPartPair));
+                            pair, settings, partTypeCounts, namespaces, bluePrints, rootPartPair, token));
                     }
                 }
 
@@ -678,12 +732,18 @@ namespace Serialize.OpenXml.CodeGen
                     Attributes = MemberAttributes.Public
                 };
                 mainClass.Members.Add(entryMethod);
-                mainClass.Members.AddRange(BuildHelperMethods(bluePrints, settings, namespaces));
+                mainClass.Members.AddRange(BuildHelperMethods(bluePrints, settings, namespaces, token));
 
                 // Setup the imports
                 var codeNameSpaces = new List<CodeNamespaceImport>(namespaces.Count);
                 foreach (var ns in namespaces)
                 {
+                    // Check to see if the task has been cancelled.
+                    if (token.IsCancellationRequested)
+                    {
+                        token.ThrowIfCancellationRequested();
+                    }
+
                     if (!String.IsNullOrWhiteSpace(ns.Value))
                     {
                         codeNameSpaces.Add(settings.NamespaceAliasOptions.BuildNamespaceImport(

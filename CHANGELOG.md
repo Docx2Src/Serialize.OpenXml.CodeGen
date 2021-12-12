@@ -10,6 +10,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 - Added asynchronous versions of the `GenerateSourceCode(...)` extenson methods for
   `OpenXmlElement`, `OpenXmlPart`, and `OpenXmlPackage` objects.
+  
+### Changed
+- *\[Breaking Change\]:* Updated `IOpenXmlElementHandler` and `IOpenXmlPartHandler`
+  interfaces to add `CancellationToken` parameters to all applicable method 
+  definitions.
+  
+### Fixed
+- When creating and initializing `OpenXmlUnknownElement` variables, use the
+  `CreateOpenXmlUnknownElement` static method instead of the traditional constructor.
 
 ## [0.4.2-beta] - 2021-11-22
 

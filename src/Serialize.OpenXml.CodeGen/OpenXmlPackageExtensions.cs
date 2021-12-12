@@ -299,6 +299,12 @@ namespace Serialize.OpenXml.CodeGen
                         throw new ArgumentException("object is not a recognized OpenXmlPackage type.", nameof(pkg));
                 }
 
+                // Check to see if the task has been cancelled.
+                if (token.IsCancellationRequested)
+                {
+                    token.ThrowIfCancellationRequested();
+                }
+
                 // Create the entry method
                 entryPoint = new CodeMemberMethod()
                 {
@@ -376,6 +382,12 @@ namespace Serialize.OpenXml.CodeGen
                 tryAndCatch.FinallyStatements.Add(conditionStatement);
                 entryPoint.Statements.Add(tryAndCatch);
 
+                // Check to see if the task has been cancelled.
+                if (token.IsCancellationRequested)
+                {
+                    token.ThrowIfCancellationRequested();
+                }
+
                 // Create the CreateParts method
                 createParts = new CodeMemberMethod()
                 {
@@ -407,6 +419,12 @@ namespace Serialize.OpenXml.CodeGen
 
                     foreach (var pair in pkg.Parts)
                     {
+                        // Check to see if the task has been cancelled.
+                        if (token.IsCancellationRequested)
+                        {
+                            token.ThrowIfCancellationRequested();
+                        }
+
                         // Need special handling rules for WorkbookPart, MainDocumentPart, and PresentationPart
                         // objects.  They cannot be created using the usual "AddNewPart" methods, unfortunately.
                         currentPartType = pair.OpenXmlPart.GetType();
@@ -469,17 +487,29 @@ namespace Serialize.OpenXml.CodeGen
                             // an additional invalid 'AddNewPart' method for the current main part.
                             foreach (var child in pair.OpenXmlPart.Parts)
                             {
+                                // Check to see if the task has been cancelled.
+                                if (token.IsCancellationRequested)
+                                {
+                                    token.ThrowIfCancellationRequested();
+                                }
+
                                 createParts.Statements.AddRange(
                                     OpenXmlPartExtensions.BuildEntryMethodCodeStatements(
-                                        child, settings, partTypeCounts, namespaces, bluePrints, rootVarType));
+                                        child, settings, partTypeCounts, namespaces, bluePrints, rootVarType, token));
                             }
                             continue;
+                        }
+
+                        // Check to see if the task has been cancelled.
+                        if (token.IsCancellationRequested)
+                        {
+                            token.ThrowIfCancellationRequested();
                         }
 
                         rootVarType = new KeyValuePair<string, Type>(pkgVarName, pkgType);
                         createParts.Statements.AddRange(
                             OpenXmlPartExtensions.BuildEntryMethodCodeStatements(
-                                pair, settings, partTypeCounts, namespaces, bluePrints, rootVarType));
+                                pair, settings, partTypeCounts, namespaces, bluePrints, rootVarType, token));
                     }
                 }
 
@@ -490,11 +520,17 @@ namespace Serialize.OpenXml.CodeGen
                     Attributes = MemberAttributes.Public
                 };
 
+                // Check to see if the task has been cancelled.
+                if (token.IsCancellationRequested)
+                {
+                    token.ThrowIfCancellationRequested();
+                }
+
                 // Setup the main class members
                 mainClass.Members.Add(entryPoint);
                 mainClass.Members.Add(createParts);
                 mainClass.Members.AddRange(OpenXmlPartExtensions.BuildHelperMethods
-                    (bluePrints, settings, namespaces));
+                    (bluePrints, settings, namespaces, token));
 
                 // Setup the imports
                 var codeNameSpaces = new List<CodeNamespaceImport>(namespaces.Count);

@@ -24,6 +24,7 @@ using System;
 using System.CodeDom;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Threading;
 using DocumentFormat.OpenXml;
 
 namespace Serialize.OpenXml.CodeGen
@@ -57,6 +58,9 @@ namespace Serialize.OpenXml.CodeGen
         /// Collection <see cref="IDictionary{TKey, TValue}"/> used to keep track of all
         /// openxml namespaces used during the process.
         /// </param>
+        /// <param name="token">
+        /// Task cancellation token from the parent method.
+        /// </param>
         /// <param name="elementName">
         /// The variable name of the root <see cref="OpenXmlElement"/> object that was built
         /// from the <paramref name="element"/>.
@@ -74,6 +78,7 @@ namespace Serialize.OpenXml.CodeGen
             ISerializeSettings settings,
             KeyedCollection<Type, TypeMonitor> types,
             IDictionary<string, string> namespaces,
+            CancellationToken token,
             out string elementName);
 
         #endregion

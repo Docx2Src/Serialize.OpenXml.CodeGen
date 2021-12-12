@@ -77,6 +77,50 @@ namespace Serialize.OpenXml.CodeGen
             IDictionary<string, string> namespaces,
             out string elementName)
         {
+            return e.BuildCodeStatements(
+                settings, types, namespaces, CancellationToken.None, out elementName
+                );
+        }
+
+        /// <summary>
+        /// Builds the appropriate code objects that would build the contents of
+        /// <paramref name="e"/>.
+        /// </summary>
+        /// <param name="e">
+        /// The <see cref="OpenXmlElement"/> object to codify.
+        /// </param>
+        /// <param name="settings">
+        /// The <see cref="ISerializeSettings"/> to use during the code generation
+        /// process.
+        /// </param>
+        /// <param name="types">
+        /// A lookup <see cref="KeyedCollection{TKey, TItem}"/> containing the
+        /// available <see cref="TypeMonitor"/> elements to use for variable naming
+        /// purposes.
+        /// </param>
+        /// <param name="namespaces">
+        /// Collection <see cref="IDictionary{TKey, TValue}"/> used to keep track of all openxml namespaces
+        /// used during the process.
+        /// </param>
+        /// <param name="token">
+        /// Task cancellation token from the parent method.
+        /// </param>
+        /// <param name="elementName">
+        /// The variable name of the root <see cref="OpenXmlElement"/> object that was built
+        /// from the <paramref name="e"/>.
+        /// </param>
+        /// <returns>
+        /// A collection of code statements and expressions that could be used to generate
+        /// a new <paramref name="e"/> object from code.
+        /// </returns>
+        public static CodeStatementCollection BuildCodeStatements(
+            this OpenXmlElement e,
+            ISerializeSettings settings,
+            KeyedCollection<Type, TypeMonitor> types,
+            IDictionary<string, string> namespaces,
+            CancellationToken token,
+            out string elementName)
+        {
             // argument validation
             if (e is null) throw new ArgumentNullException(nameof(e));
             if (settings is null) throw new ArgumentNullException(nameof(settings));
@@ -89,6 +133,14 @@ namespace Serialize.OpenXml.CodeGen
             // method vars
             var result = new CodeStatementCollection();
             var elementType = e.GetType();
+
+            // Check to see if the current task has been cancelled before starting
+            // work on another element.
+            if (token.IsCancellationRequested)
+            {
+                result.Clear();
+                token.ThrowIfCancellationRequested();
+            }
 
             // If current element is OpenXmlUnknownElement and IgnoreUnknownElements
             // setting is enabled, return an empty CodeStatementCollection and
@@ -115,6 +167,14 @@ namespace Serialize.OpenXml.CodeGen
             // custom code instead
             if (settings?.Handlers != null && settings.Handlers.TryGetValue(elementType, out IOpenXmlHandler customHandler))
             {
+                // Check to see if the current task has been cancelled before trying
+                // to call the custom code.
+                if (token.IsCancellationRequested)
+                {
+                    result.Clear();
+                    token.ThrowIfCancellationRequested();
+                }
+
                 // Make sure that the current handler implements IOpenXmlElementHandler.
                 // If so, return the custom code statement collection.
                 if (customHandler is IOpenXmlElementHandler cHandler)
@@ -122,7 +182,7 @@ namespace Serialize.OpenXml.CodeGen
                     // Only return the custom code statements if the hanlder
                     // implementation doesn't return null
                     var customCodeStatements = cHandler.BuildCodeStatements(
-                        e, settings, types, namespaces, out elementName);
+                        e, settings, types, namespaces, token, out elementName);
 
                     if (customCodeStatements != null) return customCodeStatements;
                 }
@@ -318,31 +378,62 @@ namespace Serialize.OpenXml.CodeGen
                 result.AddBlankLine();
                 _ = simpleTypePropReferences.AddLast(new Tuple<Type, string, string>(
                     tmpType, "MCAttributes", simpleName));
-                // simpleTypePropReferences.Add("MCAttributes", simpleName);
             }
 
             // Include the alias prefix if the current element belongs to a class
             // within the namespaces identified to needing an alias
             junk = elementType.GetObjectTypeName(namespaces, settings.NamespaceAliasOptions.Order);
-            createExpression = new CodeObjectCreateExpression(junk);
+
+            // Prepare the type monitor for the current element
+            if (!types.Contains(elementType))
+            {
+                typeMon = new TypeMonitor(elementType);
+                types.Add(typeMon);
+            }
+            else
+            {
+                typeMon = types[elementType];
+            }
 
             /********************************************************************************
              * Custom element constructors
              ********************************************************************************/
-            // OpenXmlUknownElement objects require the calling of custom constructors
-            if (e is OpenXmlUnknownElement)
+            // OpenXmlUknownElement objects should use a static method OpenXmlUnknownElement.CreateOpenXmlUnknownElement
+            // instead of the actual ctor method.
+            if (e is OpenXmlUnknownElement unknownElement)
             {
-                createExpression.Parameters.AddRange(new CodeExpression[]
+                var createUnknownElementRef = new CodeMethodReferenceExpression(
+                    new CodeVariableReferenceExpression(typeof(OpenXmlUnknownElement).Name),
+                    "CreateOpenXmlUnknownElement");
+                var createUnknownElementInvoke = new CodeMethodInvokeExpression(
+                    createUnknownElementRef,
+                    new CodePrimitiveExpression(unknownElement.OuterXml));
+
+                // Build the initializer for the current element
+                if (typeMon.GetVariableName(namespaces, out elementName))
                 {
-                    new CodePrimitiveExpression(e.Prefix),
-                    new CodePrimitiveExpression(e.LocalName),
-                    new CodePrimitiveExpression(e.NamespaceUri)
-                });
+                    statement = new CodeAssignStatement(
+                        new CodeVariableReferenceExpression(elementName),
+                        createUnknownElementInvoke);
+                }
+                else
+                {
+                    statement = new CodeVariableDeclarationStatement(
+                        junk,
+                        elementName,
+                        createUnknownElementInvoke);
+                }
+                result.Add(statement);
+                return result;
             }
+
+            // The class types below use a plain old constructor to initialize.
+            createExpression = new CodeObjectCreateExpression(junk);
+
             // OpenXmlMiscNode classes do not have default constructors so
             // use the constructor that provides the note type and outer
             // xml values.
-            else if (e is OpenXmlMiscNode miscNode)
+            if (e is OpenXmlMiscNode miscNode)
             {
                 // Need to grab the XmlNodeType enum properties in order to 
                 // initialize the OpenXmlMiscNode constructor correctly.
@@ -379,15 +470,6 @@ namespace Serialize.OpenXml.CodeGen
             }
 
             // Build the initializer for the current element
-            if (!types.Contains(elementType))
-            {
-                typeMon = new TypeMonitor(elementType);
-                types.Add(typeMon);
-            }
-            else
-            {
-                typeMon = types[elementType];
-            }
             if (typeMon.GetVariableName(namespaces, out elementName))
             {
                 statement = new CodeAssignStatement(
@@ -532,6 +614,14 @@ namespace Serialize.OpenXml.CodeGen
             // Insert an empty line
             result.AddBlankLine();
 
+            // Check to see if the current task has been cancelled before checking
+            // for more subelements using recursion.
+            if (token.IsCancellationRequested)
+            {
+                result.Clear();
+                token.ThrowIfCancellationRequested();
+            }
+
             // See if the current element has children and retrieve that information
             if (e.HasChildren)
             {
@@ -542,7 +632,7 @@ namespace Serialize.OpenXml.CodeGen
 
                     // use recursion to generate source code for the child elements
                     result.AddRange(
-                        child.BuildCodeStatements(settings, types, namespaces, out string appendName));
+                        child.BuildCodeStatements(settings, types, namespaces, token, out string appendName));
 
                     methodReferenceExpression = new CodeMethodReferenceExpression(
                         new CodeVariableReferenceExpression(elementName),
@@ -706,9 +796,12 @@ namespace Serialize.OpenXml.CodeGen
                 var mainNamespace = new CodeNamespace(settings.NamespaceName);
                 CodeStatementCollection methodStatements;
 
+                // Check to make sure that the method has not been cancelled yet
+                token.ThrowIfCancellationRequested();
+
                 // Set the uniqueness indicator before building the requested code statements.
                 TypeMonitor.UseUniqueVariableNames = settings.UseUniqueVariableNames;
-                methodStatements = element.BuildCodeStatements(settings, types, namespaces, out string tmpName);
+                methodStatements = element.BuildCodeStatements(settings, types, namespaces, token, out string tmpName);
 
                 // Setup the main method
                 var mainMethod = new CodeMemberMethod()

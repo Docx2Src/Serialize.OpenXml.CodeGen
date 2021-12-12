@@ -23,6 +23,7 @@ DEALINGS IN THE SOFTWARE.
 using System;
 using System.CodeDom;
 using System.Collections.Generic;
+using System.Threading;
 using DocumentFormat.OpenXml.Packaging;
 
 namespace Serialize.OpenXml.CodeGen
@@ -63,6 +64,9 @@ namespace Serialize.OpenXml.CodeGen
         /// The root variable name and <see cref="Type"/> to use when building code
         /// statements to create new <see cref="OpenXmlPart"/> objects.
         /// </param>
+        /// <param name="token">
+        /// Task cancellation token from the parent method.
+        /// </param>
         /// <returns>
         /// A collection of code statements and expressions that could be used to generate
         /// a new <paramref name="part"/> object from code.
@@ -77,7 +81,8 @@ namespace Serialize.OpenXml.CodeGen
             IDictionary<string, int> typeCounts,
             IDictionary<string, string> namespaces,
             OpenXmlPartBluePrintCollection blueprints,
-            KeyValuePair<string, Type> rootVar);
+            KeyValuePair<string, Type> rootVar,
+            CancellationToken token);
 
         /// <summary>
         /// Builds the helper method of a given <see cref="OpenXmlPart"/>.
@@ -96,6 +101,9 @@ namespace Serialize.OpenXml.CodeGen
         /// Collection <see cref="IDictionary{TKey, TValue}"/> used to keep track of all
         /// openxml namespaces used during the process.
         /// </param>
+        /// <param name="token">
+        /// Task cancellation token from the parent method.
+        /// </param>
         /// <returns>
         /// A new <see cref="CodeMemberMethod"/> object containing the necessary source code
         /// to recreate <paramref name="part"/>.
@@ -108,7 +116,8 @@ namespace Serialize.OpenXml.CodeGen
             OpenXmlPart part,
             string methodName,
             ISerializeSettings settings,
-            IDictionary<string, string> namespaces);
+            IDictionary<string, string> namespaces,
+            CancellationToken token);
 
         #endregion
     }
