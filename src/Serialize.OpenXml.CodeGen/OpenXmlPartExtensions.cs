@@ -99,7 +99,12 @@ namespace Serialize.OpenXml.CodeGen
             if (part is null) throw new ArgumentNullException(nameof(part));
             if (settings is null) throw new ArgumentNullException(nameof(settings));
             if (blueprints is null) throw new ArgumentNullException(nameof(blueprints));
-            if (String.IsNullOrWhiteSpace(rootVar.Key)) throw new ArgumentNullException(nameof(rootVar.Key));
+
+            if (String.IsNullOrWhiteSpace(rootVar.Key))
+            {
+                throw new ArgumentNullException(nameof(rootVar.Key));
+            }
+
             bool hasHandlers = settings?.Handlers != null;
 
             // Check to see if the task has been cancelled.
@@ -109,7 +114,8 @@ namespace Serialize.OpenXml.CodeGen
             }
 
             // Use the custom handler methods if present and provide actual code
-            if (hasHandlers && settings.Handlers.TryGetValue(part.OpenXmlPart.GetType(), out IOpenXmlHandler h))
+            if (hasHandlers && settings.Handlers.TryGetValue(part.OpenXmlPart.GetType(),
+                out IOpenXmlHandler h))
             {
                 if (h is IOpenXmlPartHandler partHandler)
                 {
@@ -185,7 +191,8 @@ namespace Serialize.OpenXml.CodeGen
             // referenceExpression = addNewPartExpressions.Item1;
             invokeExpression = addNewPartExpressions.Item2;
 
-            result.Add(new CodeVariableDeclarationStatement(partTypeName, varName, invokeExpression));
+            result.Add(new CodeVariableDeclarationStatement(
+                partTypeName, varName, invokeExpression));
 
             // Because the custom AddNewPart methods don't consistently take in a string relId
             // as a parameter, the id needs to be assigned after it is created.
@@ -199,7 +206,8 @@ namespace Serialize.OpenXml.CodeGen
             }
 
             // Add the call to the method to populate the current OpenXmlPart object
-            methodReference = new CodeMethodReferenceExpression(new CodeThisReferenceExpression(), bpTemp.MethodName);
+            methodReference = new CodeMethodReferenceExpression(new CodeThisReferenceExpression(),
+                bpTemp.MethodName);
             result.Add(new CodeMethodInvokeExpression(methodReference,
                 new CodeDirectionExpression(FieldDirection.Ref,
                     new CodeVariableReferenceExpression(varName))));
@@ -232,8 +240,8 @@ namespace Serialize.OpenXml.CodeGen
                         token.ThrowIfCancellationRequested();
                     }
 
-                    // If the current child object has already been created, simply add a reference to
-                    // said object using the AddPart method.
+                    // If the current child object has already been created, simply add a reference
+                    // to said object using the AddPart method.
                     if (blueprints.Contains(p.OpenXmlPart.Uri))
                     {
                         childBluePrint = blueprints[p.OpenXmlPart.Uri];
@@ -251,7 +259,8 @@ namespace Serialize.OpenXml.CodeGen
                     }
 
                     // If this is a new part, call this method with the current part's details
-                    result.AddRange(BuildEntryMethodCodeStatements(p, settings, typeCounts, namespaces, blueprints,
+                    result.AddRange(BuildEntryMethodCodeStatements(
+                        p, settings, typeCounts, namespaces, blueprints,
                         new KeyValuePair<string, Type>(varName, partType), token));
                 }
             }
@@ -272,15 +281,15 @@ namespace Serialize.OpenXml.CodeGen
         /// process.
         /// </param>
         /// <param name="namespaces">
-        /// <see cref="IDictionary{TKey, TValue}"/> collection used to keep track of all openxml namespaces
-        /// used during the process.
+        /// <see cref="IDictionary{TKey, TValue}"/> collection used to keep track of all openxml
+        /// namespaces used during the process.
         /// </param>
         /// <param name="token">
         /// Task cancellation token from the parent method.
         /// </param>
         /// <returns>
-        /// A collection of code helper statements and expressions that could be used to generate a new
-        /// <see cref="OpenXmlPart"/> object from code.
+        /// A collection of code helper statements and expressions that could be used to generate a
+        /// new <see cref="OpenXmlPart"/> object from code.
         /// </returns>
         public static CodeTypeMemberCollection BuildHelperMethods(
             OpenXmlPartBluePrintCollection bluePrints,
@@ -347,8 +356,8 @@ namespace Serialize.OpenXml.CodeGen
                         bp.Part.RootElement.BuildCodeStatements(
                             settings, localTypes, namespaces, token, out string rootElementVar));
 
-                    // Now finish up the current method by assigning the OpenXmlElement code statements
-                    // back to the appropriate property of the part parameter
+                    // Now finish up the current method by assigning the OpenXmlElement code
+                    // statements back to the appropriate property of the part parameter
                     if (rootElementType != null && !String.IsNullOrWhiteSpace(rootElementVar))
                     {
                         foreach (var paramProp in bp.Part.GetType().GetProperties())
@@ -364,7 +373,9 @@ namespace Serialize.OpenXml.CodeGen
                             {
                                 var varRef = new CodeVariableReferenceExpression(rootElementVar);
                                 var paramRef = new CodeArgumentReferenceExpression(methodParamName);
-                                var propRef = new CodePropertyReferenceExpression(paramRef, paramProp.Name);
+                                var propRef = new CodePropertyReferenceExpression(
+                                    paramRef, paramProp.Name);
+
                                 method.Statements.Add(new CodeAssignStatement(propRef, varRef));
                                 break;
                             }
@@ -393,7 +404,9 @@ namespace Serialize.OpenXml.CodeGen
         /// that would regenerate <paramref name="part"/> using the
         /// <see cref="OpenXmlPart.FeedData(Stream)"/> method.
         /// </returns>
-        public static CodeStatementCollection BuildPartFeedData(this OpenXmlPart part, IDictionary<string, string> namespaces)
+        public static CodeStatementCollection BuildPartFeedData(
+            this OpenXmlPart part,
+            IDictionary<string, string> namespaces)
         {
             // Make sure no null values were passed.
             if (part == null) throw new ArgumentNullException(nameof(part));
@@ -427,14 +440,19 @@ namespace Serialize.OpenXml.CodeGen
             }
             result.AddBlankLine();
 
-            var fromBase64 = new CodeMethodReferenceExpression(new CodeVariableReferenceExpression("Convert"),
+            var fromBase64 = new CodeMethodReferenceExpression(
+                new CodeVariableReferenceExpression("Convert"),
                 "FromBase64String");
-            var invokeFromBase64 = new CodeMethodInvokeExpression(fromBase64, new CodeVariableReferenceExpression("base64"));
+            var invokeFromBase64 = new CodeMethodInvokeExpression(fromBase64,
+                new CodeVariableReferenceExpression("base64"));
             var createStream = new CodeObjectCreateExpression(new CodeTypeReference("MemoryStream"),
                 invokeFromBase64, new CodePrimitiveExpression(false));
-            var feedData = new CodeMethodReferenceExpression(new CodeArgumentReferenceExpression(methodParamName), "FeedData");
-            var invokeFeedData = new CodeMethodInvokeExpression(feedData, new CodeVariableReferenceExpression(memName));
-            var disposeMem = new CodeMethodReferenceExpression(new CodeVariableReferenceExpression(memName), "Dispose");
+            var feedData = new CodeMethodReferenceExpression(
+                new CodeArgumentReferenceExpression(methodParamName), "FeedData");
+            var invokeFeedData = new CodeMethodInvokeExpression(
+                feedData, new CodeVariableReferenceExpression(memName));
+            var disposeMem = new CodeMethodReferenceExpression(
+                new CodeVariableReferenceExpression(memName), "Dispose");
             var invokeDisposeMem = new CodeMethodInvokeExpression(disposeMem);
 
             // Setup the try statement
@@ -499,7 +517,8 @@ namespace Serialize.OpenXml.CodeGen
         /// A new <see cref="CodeCompileUnit"/> containing the instructions to build
         /// the referenced <see cref="OpenXmlPart"/>.
         /// </returns>
-        public static CodeCompileUnit GenerateSourceCode(this OpenXmlPart part, ISerializeSettings settings)
+        public static CodeCompileUnit GenerateSourceCode(
+            this OpenXmlPart part, ISerializeSettings settings)
         {
             return DefaultSerializeSettings.TaskIndustry.StartNew(
                 () => part.GenerateSourceCodeAsync(settings, CancellationToken.None))
@@ -519,8 +538,8 @@ namespace Serialize.OpenXml.CodeGen
         /// The <see cref="CodeDomProvider"/> object to create the resulting source code.
         /// </param>
         /// <returns>
-        /// A <see cref="string"/> representation of the source code generated by <paramref name="provider"/>
-        /// that could create <paramref name="part"/> when compiled.
+        /// A <see cref="string"/> representation of the source code generated by
+        /// <paramref name="provider"/> that could create <paramref name="part"/> when compiled.
         /// </returns>
         public static string GenerateSourceCode(this OpenXmlPart part, CodeDomProvider provider)
         {
@@ -541,10 +560,11 @@ namespace Serialize.OpenXml.CodeGen
         /// The <see cref="CodeDomProvider"/> object to create the resulting source code.
         /// </param>
         /// <returns>
-        /// A <see cref="string"/> representation of the source code generated by <paramref name="provider"/>
-        /// that could create <paramref name="part"/> when compiled.
+        /// A <see cref="string"/> representation of the source code generated by
+        /// <paramref name="provider"/> that could create <paramref name="part"/> when compiled.
         /// </returns>
-        public static string GenerateSourceCode(this OpenXmlPart part, NamespaceAliasOptions opts, CodeDomProvider provider)
+        public static string GenerateSourceCode(
+            this OpenXmlPart part, NamespaceAliasOptions opts, CodeDomProvider provider)
         {
             return part.GenerateSourceCode(new DefaultSerializeSettings(opts), provider);
         }
@@ -564,10 +584,11 @@ namespace Serialize.OpenXml.CodeGen
         /// The <see cref="CodeDomProvider"/> object to create the resulting source code.
         /// </param>
         /// <returns>
-        /// A <see cref="string"/> representation of the source code generated by <paramref name="provider"/>
-        /// that could create <paramref name="part"/> when compiled.
+        /// A <see cref="string"/> representation of the source code generated by
+        /// <paramref name="provider"/> that could create <paramref name="part"/> when compiled.
         /// </returns>
-        public static string GenerateSourceCode(this OpenXmlPart part, ISerializeSettings settings, CodeDomProvider provider)
+        public static string GenerateSourceCode(
+            this OpenXmlPart part, ISerializeSettings settings, CodeDomProvider provider)
         {
             var codeString = new System.Text.StringBuilder();
             var code = part.GenerateSourceCode(settings);
@@ -680,7 +701,8 @@ namespace Serialize.OpenXml.CodeGen
                 // method reference then add it to the blue print collection
                 mainBluePrint = new OpenXmlPartBluePrint(part, varName);
                 bluePrints.Add(mainBluePrint);
-                methodRef = new CodeMethodReferenceExpression(new CodeThisReferenceExpression(), mainBluePrint.MethodName);
+                methodRef = new CodeMethodReferenceExpression(
+                    new CodeThisReferenceExpression(), mainBluePrint.MethodName);
 
                 // Build the entry method
                 var entryMethod = new CodeMemberMethod()
@@ -699,7 +721,8 @@ namespace Serialize.OpenXml.CodeGen
                     token.ThrowIfCancellationRequested();
                 }
 
-                var relCodeStatements = part.GenerateRelationshipCodeStatements(new CodeThisReferenceExpression());
+                var relCodeStatements = part.GenerateRelationshipCodeStatements(
+                    new CodeThisReferenceExpression());
                 if (relCodeStatements.Count > 0)
                 {
                     entryMethod.Statements.AddRange(relCodeStatements);
@@ -718,7 +741,13 @@ namespace Serialize.OpenXml.CodeGen
                         }
 
                         entryMethod.Statements.AddRange(BuildEntryMethodCodeStatements(
-                            pair, settings, partTypeCounts, namespaces, bluePrints, rootPartPair, token));
+                            pair,
+                            settings,
+                            partTypeCounts,
+                            namespaces,
+                            bluePrints,
+                            rootPartPair,
+                            token));
                     }
                 }
 
@@ -732,7 +761,8 @@ namespace Serialize.OpenXml.CodeGen
                     Attributes = MemberAttributes.Public
                 };
                 mainClass.Members.Add(entryMethod);
-                mainClass.Members.AddRange(BuildHelperMethods(bluePrints, settings, namespaces, token));
+                mainClass.Members.AddRange(BuildHelperMethods(
+                    bluePrints, settings, namespaces, token));
 
                 // Setup the imports
                 var codeNameSpaces = new List<CodeNamespaceImport>(namespaces.Count);
@@ -779,15 +809,16 @@ namespace Serialize.OpenXml.CodeGen
         /// Task cancellation token.
         /// </param>
         /// <returns>
-        /// A <see cref="string"/> representation of the source code generated by <paramref name="provider"/>
-        /// that could create <paramref name="part"/> when compiled.
+        /// A <see cref="string"/> representation of the source code generated by
+        /// <paramref name="provider"/> that could create <paramref name="part"/> when compiled.
         /// </returns>
         public static async Task<string> GenerateSourceCodeAsync(
             this OpenXmlPart part,
             CodeDomProvider provider,
             CancellationToken token)
         {
-            return await part.GenerateSourceCodeAsync(new DefaultSerializeSettings(), provider, token);
+            return await part.GenerateSourceCodeAsync(
+                new DefaultSerializeSettings(), provider, token);
         }
 
         /// <summary>
@@ -807,8 +838,8 @@ namespace Serialize.OpenXml.CodeGen
         /// Task cancellation token.
         /// </param>
         /// <returns>
-        /// A <see cref="string"/> representation of the source code generated by <paramref name="provider"/>
-        /// that could create <paramref name="part"/> when compiled.
+        /// A <see cref="string"/> representation of the source code generated by
+        /// <paramref name="provider"/> that could create <paramref name="part"/> when compiled.
         /// </returns>
         public static async Task<string> GenerateSourceCodeAsync(
             this OpenXmlPart part,
@@ -838,8 +869,8 @@ namespace Serialize.OpenXml.CodeGen
         /// Task cancellation token.
         /// </param>
         /// <returns>
-        /// A <see cref="string"/> representation of the source code generated by <paramref name="provider"/>
-        /// that could create <paramref name="part"/> when compiled.
+        /// A <see cref="string"/> representation of the source code generated by
+        /// <paramref name="provider"/> that could create <paramref name="part"/> when compiled.
         /// </returns>
         public static async Task<string> GenerateSourceCodeAsync(
             this OpenXmlPart part,
@@ -878,7 +909,8 @@ namespace Serialize.OpenXml.CodeGen
         /// <returns>
         /// A tuple containing the AddNewPart code expressions.
         /// </returns>
-        private static (CodeMethodReferenceExpression, CodeMethodInvokeExpression, bool) CreateAddNewPartMethod(
+        private static (CodeMethodReferenceExpression, CodeMethodInvokeExpression, bool)
+            CreateAddNewPartMethod(
             IdPartPair part, KeyValuePair<string, Type> rootVar)
         {
             CodeMethodReferenceExpression item1 = null;
@@ -920,7 +952,9 @@ namespace Serialize.OpenXml.CodeGen
                 parameters = m.GetParameters();
 
                 // Methods with 1 string parameter should be the contentType parameter method
-                if (parameters != null && parameters.Length == 1 && parameters[0].ParameterType == typeof(string))
+                if (parameters != null &&
+                    parameters.Length == 1 &&
+                    parameters[0].ParameterType == typeof(string))
                 {
                     item2.Parameters.Add(
                         new CodePrimitiveExpression(part.OpenXmlPart.ContentType));

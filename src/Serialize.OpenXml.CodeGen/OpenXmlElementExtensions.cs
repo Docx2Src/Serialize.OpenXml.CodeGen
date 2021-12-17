@@ -59,8 +59,8 @@ namespace Serialize.OpenXml.CodeGen
         /// purposes.
         /// </param>
         /// <param name="namespaces">
-        /// Collection <see cref="IDictionary{TKey, TValue}"/> used to keep track of all openxml namespaces
-        /// used during the process.
+        /// Collection <see cref="IDictionary{TKey, TValue}"/> used to keep track of all openxml
+        /// namespaces used during the process.
         /// </param>
         /// <param name="elementName">
         /// The variable name of the root <see cref="OpenXmlElement"/> object that was built
@@ -99,8 +99,8 @@ namespace Serialize.OpenXml.CodeGen
         /// purposes.
         /// </param>
         /// <param name="namespaces">
-        /// Collection <see cref="IDictionary{TKey, TValue}"/> used to keep track of all openxml namespaces
-        /// used during the process.
+        /// Collection <see cref="IDictionary{TKey, TValue}"/> used to keep track of all openxml
+        /// namespaces used during the process.
         /// </param>
         /// <param name="token">
         /// Task cancellation token from the parent method.
@@ -156,7 +156,8 @@ namespace Serialize.OpenXml.CodeGen
             // and proceed no futher.
             if (e is OpenXmlMiscNode eMisc)
             {
-                if (settings.IgnoreMiscNodeTypes != null && settings.IgnoreMiscNodeTypes.Contains(eMisc.XmlNodeType))
+                if (settings.IgnoreMiscNodeTypes != null &&
+                    settings.IgnoreMiscNodeTypes.Contains(eMisc.XmlNodeType))
                 {
                     elementName = String.Empty;
                     return result;
@@ -165,7 +166,8 @@ namespace Serialize.OpenXml.CodeGen
 
             // If there is any custom code available for the current element, use the
             // custom code instead
-            if (settings?.Handlers != null && settings.Handlers.TryGetValue(elementType, out IOpenXmlHandler customHandler))
+            if (settings?.Handlers != null && settings.Handlers.TryGetValue(elementType,
+                out IOpenXmlHandler customHandler))
             {
                 // Check to see if the current task has been cancelled before trying
                 // to call the custom code.
@@ -261,7 +263,8 @@ namespace Serialize.OpenXml.CodeGen
                 // Add the complex property namespace to the set
                 if (!namespaces.ContainsKey(complex.PropertyType.Namespace))
                 {
-                    _ = complex.PropertyType.ExistsInDifferentNamespace(namespaces, out string tmpAlias);
+                    _ = complex.PropertyType
+                        .ExistsInDifferentNamespace(namespaces, out string tmpAlias);
                     namespaces.Add(complex.PropertyType.Namespace, tmpAlias);
                 }
 
@@ -314,11 +317,13 @@ namespace Serialize.OpenXml.CodeGen
                     // to build a variable name.
                     if (!(typeReference is null))
                     {
-                        statement = new CodeVariableDeclarationStatement(typeReference, simpleName, createExpression);
+                        statement = new CodeVariableDeclarationStatement(
+                            typeReference, simpleName, createExpression);
                     }
                     else
                     {
-                        statement = new CodeVariableDeclarationStatement(junk, simpleName, createExpression);
+                        statement = new CodeVariableDeclarationStatement(
+                            junk, simpleName, createExpression);
                     }
                 }
                 result.Add(statement);
@@ -358,7 +363,8 @@ namespace Serialize.OpenXml.CodeGen
                 }
                 else
                 {
-                    statement = new CodeVariableDeclarationStatement(tmpType.Name, simpleName, createExpression);
+                    statement = new CodeVariableDeclarationStatement(
+                        tmpType.Name, simpleName, createExpression);
                 }
 
                 result.Add(statement);
@@ -398,7 +404,8 @@ namespace Serialize.OpenXml.CodeGen
             /********************************************************************************
              * Custom element constructors
              ********************************************************************************/
-            // OpenXmlUknownElement objects should use a static method OpenXmlUnknownElement.CreateOpenXmlUnknownElement
+            // OpenXmlUknownElement objects should use a static method
+            // OpenXmlUnknownElement.CreateOpenXmlUnknownElement
             // instead of the actual ctor method.
             if (e is OpenXmlUnknownElement unknownElement)
             {
@@ -478,7 +485,8 @@ namespace Serialize.OpenXml.CodeGen
             }
             else
             {
-                statement = new CodeVariableDeclarationStatement(junk, elementName, createExpression);
+                statement = new CodeVariableDeclarationStatement(
+                    junk, elementName, createExpression);
             }
             result.Add(statement);
 
@@ -566,7 +574,8 @@ namespace Serialize.OpenXml.CodeGen
                 if (val is null) continue;
 
                 pi = cp.PropertyType.GetProperty("Value");
-                simpleName = pi.PropertyType.GetObjectTypeName(namespaces, settings.NamespaceAliasOptions.Order);
+                simpleName = pi.PropertyType.GetObjectTypeName(namespaces,
+                    settings.NamespaceAliasOptions.Order);
 
                 // Add the simple property type namespace to the set
                 if (!namespaces.ContainsKey(pi.PropertyType.Namespace))
@@ -580,10 +589,9 @@ namespace Serialize.OpenXml.CodeGen
                         $"Could not parse value of '{cp.Name}' property for variable " +
                         $"`{eName}` - {simpleName} enum does not contain '{val}' field");
 
-                // This code may run into issues if, for some unfortunate reason, the xml schema used to help
-                // create the current OpenXml SDK library is not set correctly.  If that happens, the
-                // catch statements will print out the current line of code as a comment as a stop gap until
-                // the issue is reported and fix.
+                // This code may run into issues if, for some unfortunate reason, the xml schema
+                // used to help create the current OpenXml SDK library is not set correctly.  If
+                // that happens, the the issue is reported and fix.
                 try
                 {
                     statement = new CodeAssignStatement(
@@ -632,7 +640,8 @@ namespace Serialize.OpenXml.CodeGen
 
                     // use recursion to generate source code for the child elements
                     result.AddRange(
-                        child.BuildCodeStatements(settings, types, namespaces, token, out string appendName));
+                        child.BuildCodeStatements(settings, types, namespaces, token,
+                        out string appendName));
 
                     methodReferenceExpression = new CodeMethodReferenceExpression(
                         new CodeVariableReferenceExpression(elementName),
@@ -801,17 +810,20 @@ namespace Serialize.OpenXml.CodeGen
 
                 // Set the uniqueness indicator before building the requested code statements.
                 TypeMonitor.UseUniqueVariableNames = settings.UseUniqueVariableNames;
-                methodStatements = element.BuildCodeStatements(settings, types, namespaces, token, out string tmpName);
+                methodStatements = element.BuildCodeStatements(settings, types, namespaces, token,
+                    out string tmpName);
 
                 // Setup the main method
                 var mainMethod = new CodeMemberMethod()
                 {
                     Name = $"Build{eType.Name}",
-                    ReturnType = new CodeTypeReference(eType.GetObjectTypeName(namespaces, settings.NamespaceAliasOptions.Order)),
+                    ReturnType = new CodeTypeReference(eType.GetObjectTypeName(namespaces,
+                        settings.NamespaceAliasOptions.Order)),
                     Attributes = MemberAttributes.Public | MemberAttributes.Final
                 };
                 mainMethod.Statements.AddRange(methodStatements);
-                mainMethod.Statements.Add(new CodeMethodReturnStatement(new CodeVariableReferenceExpression(tmpName)));
+                mainMethod.Statements.Add(new CodeMethodReturnStatement(
+                    new CodeVariableReferenceExpression(tmpName)));
 
                 // Setup the main class next
                 var mainClass = new CodeTypeDeclaration($"{eType.Name}BuilderClass")
@@ -860,7 +872,8 @@ namespace Serialize.OpenXml.CodeGen
         /// A <see cref="string"/> representation of the source code generated by
         /// <paramref name="provider"/> that could create <paramref name="element"/> when compiled.
         /// </returns>
-        public static string GenerateSourceCode(this OpenXmlElement element, CodeDomProvider provider)
+        public static string GenerateSourceCode(
+            this OpenXmlElement element, CodeDomProvider provider)
         {
             return element.GenerateSourceCode(new DefaultSerializeSettings(), provider);
         }

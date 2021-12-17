@@ -214,7 +214,8 @@ namespace Serialize.OpenXml.CodeGen
         #region Private Instance Methods;
 
         /// <inheritdoc/>
-        IEnumerator<KeyValuePair<string, bool>> IEnumerable<KeyValuePair<string, bool>>.GetEnumerator()
+        IEnumerator<KeyValuePair<string, bool>> IEnumerable<KeyValuePair<string, bool>>
+            .GetEnumerator()
         {
             return ((IEnumerable<KeyValuePair<string, bool>>)_values).GetEnumerator();
         }

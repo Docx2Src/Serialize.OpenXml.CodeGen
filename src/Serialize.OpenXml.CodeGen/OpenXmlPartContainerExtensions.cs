@@ -38,19 +38,21 @@ namespace Serialize.OpenXml.CodeGen
         #region Public Static Methods
 
         /// <summary>
-        /// Creates a collection of code statements that describe how to add external relationships to
-        /// a <see cref="OpenXmlPartContainer"/> object.
+        /// Creates a collection of code statements that describe how to add external relationships
+        /// to a <see cref="OpenXmlPartContainer"/> object.
         /// </summary>
         /// <param name="relationships">
-        /// The collection of <see cref="ExternalRelationship"/> objects to build the code statements for.
+        /// The collection of <see cref="ExternalRelationship"/> objects to build the code
+        /// statements for.
         /// </param>
         /// <param name="parentName">
-        /// The name of the <see cref="OpenXmlPartContainer"/> object that the external relationship
-        /// assignments should be for.
+        /// The name of the <see cref="OpenXmlPartContainer"/> object that the external
+        /// relationship assignments should be for.
         /// </param>
         /// <returns>
         /// A collection of code statements that could be used to generate and assign new
-        /// <see cref="ExternalRelationship"/> objects to a <see cref="OpenXmlPartContainer"/> object.
+        /// <see cref="ExternalRelationship"/> objects to a <see cref="OpenXmlPartContainer"/>
+        /// object.
         /// </returns>
         public static CodeStatementCollection BuildExternalRelationshipStatements(
             this IEnumerable<ExternalRelationship> relationships, string parentName)
@@ -63,11 +65,12 @@ namespace Serialize.OpenXml.CodeGen
         }
 
         /// <summary>
-        /// Creates a collection of code statements that describe how to add external relationships to
-        /// a <see cref="OpenXmlPartContainer"/> object.
+        /// Creates a collection of code statements that describe how to add external relationships
+        /// to a <see cref="OpenXmlPartContainer"/> object.
         /// </summary>
         /// <param name="relationships">
-        /// The collection of <see cref="ExternalRelationship"/> objects to build the code statements for.
+        /// The collection of <see cref="ExternalRelationship"/> objects to build the code
+        /// statements for.
         /// </param>
         /// <param name="parent">
         /// The <see cref="CodeExpression"/> object that the generated code statements will
@@ -75,7 +78,8 @@ namespace Serialize.OpenXml.CodeGen
         /// </param>
         /// <returns>
         /// A collection of code statements that could be used to generate and assign new
-        /// <see cref="ExternalRelationship"/> objects to a <see cref="OpenXmlPartContainer"/> object.
+        /// <see cref="ExternalRelationship"/> objects to a <see cref="OpenXmlPartContainer"/>
+        /// object.
         /// </returns>
         public static CodeStatementCollection BuildExternalRelationshipStatements(
             this IEnumerable<ExternalRelationship> relationships, CodeExpression parent)
@@ -113,35 +117,41 @@ namespace Serialize.OpenXml.CodeGen
         }
 
         /// <summary>
-        /// Creates a collection of code statements that describe how to add hyperlink relationships to
-        /// a <see cref="OpenXmlPartContainer"/> object.
+        /// Creates a collection of code statements that describe how to add hyperlink
+        /// relationships to a <see cref="OpenXmlPartContainer"/> object.
         /// </summary>
         /// <param name="hyperlinks">
-        /// The collection of <see cref="HyperlinkRelationship"/> objects to build the code statements for.
+        /// The collection of <see cref="HyperlinkRelationship"/> objects to build the code
+        /// statements for.
         /// </param>
         /// <param name="parentName">
-        /// The name of the <see cref="OpenXmlPartContainer"/> object that the hyperlink relationship
-        /// assignments should be for.
+        /// The name of the <see cref="OpenXmlPartContainer"/> object that the hyperlink
+        /// relationship assignments should be for.
         /// </param>
         /// <returns>
         /// A collection of code statements that could be used to generate and assign new
-        /// <see cref="HyperlinkRelationship"/> objects to a <see cref="OpenXmlPartContainer"/> object.
+        /// <see cref="HyperlinkRelationship"/> objects to a <see cref="OpenXmlPartContainer"/>
+        /// object.
         /// </returns>
         public static CodeStatementCollection BuildHyperlinkRelationshipStatements(
             this IEnumerable<HyperlinkRelationship> hyperlinks, string parentName)
         {
-            if (String.IsNullOrWhiteSpace(parentName)) throw new ArgumentNullException(nameof(parentName));
+            if (String.IsNullOrWhiteSpace(parentName))
+            {
+                throw new ArgumentNullException(nameof(parentName));
+            }
 
             return hyperlinks.BuildHyperlinkRelationshipStatements(
                 new CodeVariableReferenceExpression(parentName));
         }
 
         /// <summary>
-        /// Creates a collection of code statements that describe how to add hyperlink relationships to
-        /// a <see cref="OpenXmlPartContainer"/> object.
+        /// Creates a collection of code statements that describe how to add hyperlink
+        /// relationships to a <see cref="OpenXmlPartContainer"/> object.
         /// </summary>
         /// <param name="hyperlinks">
-        /// The collection of <see cref="HyperlinkRelationship"/> objects to build the code statements for.
+        /// The collection of <see cref="HyperlinkRelationship"/> objects to build the code
+        /// statements for.
         /// </param>
         /// <param name="parent">
         /// The <see cref="CodeExpression"/> object that the generated code statements will
@@ -149,7 +159,8 @@ namespace Serialize.OpenXml.CodeGen
         /// </param>
         /// <returns>
         /// A collection of code statements that could be used to generate and assign new
-        /// <see cref="HyperlinkRelationship"/> objects to a <see cref="OpenXmlPartContainer"/> object.
+        /// <see cref="HyperlinkRelationship"/> objects to a <see cref="OpenXmlPartContainer"/>
+        /// object.
         /// </returns>
         public static CodeStatementCollection BuildHyperlinkRelationshipStatements(
             this IEnumerable<HyperlinkRelationship> hyperlinks, CodeExpression parent)
