@@ -538,10 +538,28 @@ namespace Serialize.OpenXml.CodeGen
                 {
                     propVal = val.GetType().GetProperty("Value").GetValue(val);
 
+                    CodeExpression codeExpression;
+
+                    if (propVal is DateTime)
+                    {
+                        var dt = Convert.ToDateTime(propVal);
+                        var kind = new CodeFieldReferenceExpression
+                            (
+                                new CodeTypeReferenceExpression("System.DateTimeKind"),
+                                dt.Kind.ToString()
+                            );
+
+                        codeExpression = new CodeObjectCreateExpression("System.DateTime", new CodePrimitiveExpression(dt.Ticks), kind);
+                    }
+                    else
+                    {
+                        codeExpression = new CodePrimitiveExpression(propVal);
+                    }
+
                     statement = new CodeAssignStatement(
                         new CodePropertyReferenceExpression(
                             new CodeVariableReferenceExpression(elementName), p.Name),
-                            new CodePrimitiveExpression(propVal));
+                            codeExpression);
                 }
                 result.Add(statement);
             }
