@@ -538,10 +538,35 @@ namespace Serialize.OpenXml.CodeGen
                 {
                     propVal = val.GetType().GetProperty("Value").GetValue(val);
 
+                    CodeExpression codeExpression;
+
+                    // If the current property value type is a DateTime
+                    // a CodeObjectCreateExpression must be used instead.
+                    // Per MS documentation:
+                    // Primitive data types that can be represented using CodePrimitiveExpression include
+                    // null; string; 16-, 32-, and 64-bit signed integers;
+                    // and single-precision and double-precision floating-point numbers.
+
+                    if (propVal is DateTime)
+                    {
+                        var dt = Convert.ToDateTime(propVal);
+                        var kind = new CodeFieldReferenceExpression
+                            (
+                                new CodeTypeReferenceExpression("System.DateTimeKind"),
+                                dt.Kind.ToString()
+                            );
+
+                        codeExpression = new CodeObjectCreateExpression("System.DateTime", new CodePrimitiveExpression(dt.Ticks), kind);
+                    }
+                    else
+                    {
+                        codeExpression = new CodePrimitiveExpression(propVal);
+                    }
+
                     statement = new CodeAssignStatement(
                         new CodePropertyReferenceExpression(
                             new CodeVariableReferenceExpression(elementName), p.Name),
-                            new CodePrimitiveExpression(propVal));
+                            codeExpression);
                 }
                 result.Add(statement);
             }
