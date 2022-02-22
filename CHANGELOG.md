@@ -19,7 +19,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 - When creating and initializing `OpenXmlUnknownElement` variables, use the
   `CreateOpenXmlUnknownElement` static method instead of the traditional constructor.
-
+- When the `BuildCodeStatements` method of `OpenXmlElementExtensions` extensions class
+  encounterd a DateTime properity it was throwing a `System.ArgumentException` Invalid
+  Primitive Type System.DateTime. fixed by @vtgrady2k
+  
 ## [0.4.2-beta] - 2021-11-22
 
 ### Changed
