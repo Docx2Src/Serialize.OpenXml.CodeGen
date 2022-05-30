@@ -10,27 +10,29 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 - Added asynchronous versions of the `GenerateSourceCode(...)` extenson methods for
   `OpenXmlElement`, `OpenXmlPart`, and `OpenXmlPackage` objects.
-  
+
 ### Changed
 - *\[Breaking Change\]:* Updated `IOpenXmlElementHandler` and `IOpenXmlPartHandler`
-  interfaces to add `CancellationToken` parameters to all applicable method 
+  interfaces to add `CancellationToken` parameters to all applicable method
   definitions.
-  
+- Update DocumentFormat.OpenXml reference to 2.16.0.
+- Update System.CodeDom reference to 6.0.0.
+
 ### Fixed
 - When creating and initializing `OpenXmlUnknownElement` variables, use the
   `CreateOpenXmlUnknownElement` static method instead of the traditional constructor.
 - When the `BuildCodeStatements` method of `OpenXmlElementExtensions` extensions class
   encounterd a DateTime property it was throwing a `System.ArgumentException` Invalid
   Primitive Type System.DateTime. fixed by @vtgrady2k
-  
+
 ## [0.4.2-beta] - 2021-11-22
 
 ### Changed
-- Refactored the variable name generation process to reuse existing variable names 
+- Refactored the variable name generation process to reuse existing variable names
   when they become available.
 - *\[Breaking Change\]:* Added `UseUniqueVariableNames` property to `ISerializeSettings`
   interface. This allows to switch between unique and reused variable names.
-- *\[Breaking Change\]:* Changed `typeCounts` parameter to `types` in the 
+- *\[Breaking Change\]:* Changed `typeCounts` parameter to `types` in the
   `IOpenXmlElementHandler.BuildCodeStatements(...)` method to account for the repurposing
   of existing variable name.
 - Update DocumentFormat.OpenXml reference to 2.14.0.
@@ -46,13 +48,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   Productivity Tool used to create them.  Using directive aliases are now dynamically
   generated based on the OpenXml object that the code output is based on.
 - *\[Breaking Change\]:* Updated the `namespace` parameter type in the `IOpenXmlElementHandler`
-  and `IOpenXmlPartHandler` interface methods from `ISet<string>` to `IDictionary<string, string>` 
-  to account for the new namespace/using directive generation logic.  The following 
+  and `IOpenXmlPartHandler` interface methods from `ISet<string>` to `IDictionary<string, string>`
+  to account for the new namespace/using directive generation logic.  The following
   interface methods are impacted:
   - `IOpenXmlElementHandler.BuildCodeStatements(...)`
   - `IOpenXmlPartHandler.BuildEntryMethodCodeStatements(...)`
   - `IOpenXmlPartHandler.BuildHelperMethod(...)`
-  
+
 ### Fixed
 
 - Issue related to Hyperlink and external relationship references were not being added properly
@@ -64,7 +66,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 
 - New `ISerializeSettings` interface to allows greater flexibility in the source code generation.
-- New `IOpenXmlHandler`, `IOpenXmlElementHandler`, and `IOpenXmlPartHandler` interfaces that will 
+- New `IOpenXmlHandler`, `IOpenXmlElementHandler`, and `IOpenXmlPartHandler` interfaces that will
   allow developers to control how source code is created.
 
 ### Changed
@@ -72,13 +74,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Change visibility of many of the static method helpers so developers can use them in their custom
   code generation.
 - Update DocumentFormat.OpenXml reference to 2.13.0.
-  
+
 ### Fixed
 
-- Make sure that the return type of generated element methods include the namespace alias if 
+- Make sure that the return type of generated element methods include the namespace alias if
   needed.
 - Choose between the default method or contentType parameter method for the custom OpenXmlPart.AddNewPart
-  methods (ex: pkg.AddExtendedFilePropertiesPart() or mainDocumentPart.AddImagePart("image/x-emf")) 
+  methods (ex: pkg.AddExtendedFilePropertiesPart() or mainDocumentPart.AddImagePart("image/x-emf"))
 
 ## [0.3.2-alpha] - 2020-07-30
 
@@ -87,7 +89,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Updated process to account for more OpenXmlPart classes that may require custom AddNewPart methods
   to initialize.
 - Changed the `CreatePackage` method to take in a `String` parameter for the full file path of the target file
-  instead of a `Stream` when generating code for `OpenXmlPackage` objects.  This was to avoid using a C# `ref` 
+  instead of a `Stream` when generating code for `OpenXmlPackage` objects.  This was to avoid using a C# `ref`
   parameter that made using the generated code in a C# project more difficult to use.
 
 ### Fixed
