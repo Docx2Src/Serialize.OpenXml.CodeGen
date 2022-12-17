@@ -8,9 +8,9 @@
     <Version>0.5.0-beta</Version>
     <Authors>Ryan Boggs</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/rmboggs/Serialize.OpenXml.CodeGen</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/Docx2Src/Serialize.OpenXml.CodeGen</PackageProjectUrl>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <RepositoryUrl>https://github.com/rmboggs/Serialize.OpenXml.CodeGen</RepositoryUrl>
+    <RepositoryUrl>https://github.com/Docx2Src/Serialize.OpenXml.CodeGens</RepositoryUrl>
     <PackageReleaseNotes>$([System.IO.File]::ReadAllText($(ChangeLogFile)))</PackageReleaseNotes>
     <RepositoryType>git</RepositoryType>
     <PackageTags>openxml;codedom;DocumentFormat</PackageTags>
@@ -20,8 +20,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="DocumentFormat.OpenXml" Version="2.16.0" />
-    <PackageReference Include="System.CodeDom" Version="6.0.0" />
+    <PackageReference Include="DocumentFormat.OpenXml" Version="2.18.0" />
+    <PackageReference Include="System.CodeDom" Version="7.0.0" />
   </ItemGroup>
 
 </Project>
