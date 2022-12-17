@@ -306,10 +306,7 @@ namespace Serialize.OpenXml.CodeGen
                 }
 
                 // Check to see if the task has been cancelled.
-                if (token.IsCancellationRequested)
-                {
-                    token.ThrowIfCancellationRequested();
-                }
+                token.ThrowIfCancellationRequested();
 
                 // Create the entry method
                 entryPoint = new CodeMemberMethod()
@@ -391,10 +388,7 @@ namespace Serialize.OpenXml.CodeGen
                 entryPoint.Statements.Add(tryAndCatch);
 
                 // Check to see if the task has been cancelled.
-                if (token.IsCancellationRequested)
-                {
-                    token.ThrowIfCancellationRequested();
-                }
+                token.ThrowIfCancellationRequested();
 
                 // Create the CreateParts method
                 createParts = new CodeMemberMethod()
@@ -434,10 +428,7 @@ namespace Serialize.OpenXml.CodeGen
                     foreach (var pair in pkg.Parts)
                     {
                         // Check to see if the task has been cancelled.
-                        if (token.IsCancellationRequested)
-                        {
-                            token.ThrowIfCancellationRequested();
-                        }
+                        token.ThrowIfCancellationRequested();
 
                         // Need special handling rules for WorkbookPart, MainDocumentPart, and
                         // PresentationPart objects.  They cannot be created using the usual
@@ -511,10 +502,7 @@ namespace Serialize.OpenXml.CodeGen
                             foreach (var child in pair.OpenXmlPart.Parts)
                             {
                                 // Check to see if the task has been cancelled.
-                                if (token.IsCancellationRequested)
-                                {
-                                    token.ThrowIfCancellationRequested();
-                                }
+                                token.ThrowIfCancellationRequested();
 
                                 createParts.Statements.AddRange(
                                     OpenXmlPartExtensions.BuildEntryMethodCodeStatements(
@@ -525,10 +513,7 @@ namespace Serialize.OpenXml.CodeGen
                         }
 
                         // Check to see if the task has been cancelled.
-                        if (token.IsCancellationRequested)
-                        {
-                            token.ThrowIfCancellationRequested();
-                        }
+                        token.ThrowIfCancellationRequested();
 
                         rootVarType = new KeyValuePair<string, Type>(pkgVarName, pkgType);
                         createParts.Statements.AddRange(
@@ -546,10 +531,7 @@ namespace Serialize.OpenXml.CodeGen
                 };
 
                 // Check to see if the task has been cancelled.
-                if (token.IsCancellationRequested)
-                {
-                    token.ThrowIfCancellationRequested();
-                }
+                token.ThrowIfCancellationRequested();
 
                 // Setup the main class members
                 mainClass.Members.Add(entryPoint);

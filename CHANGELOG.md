@@ -8,9 +8,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [0.5.1-beta] - TBD
 
 ### Changed
+- Cleaned up `CancellationToken.ThrowIfCancellationRequested()` calls.
 - Update project url references.
-- Update DocumentFormat.OpenXml reference to 2.16.0.
-- Update System.CodeDom reference to 6.0.0.
+- Update DocumentFormat.OpenXml reference to 2.18.0.
+- Update System.CodeDom reference to 7.0.0.
 
 ## [0.5.0-beta] - 2022-05-29
 

@@ -67,7 +67,7 @@ namespace Serialize.OpenXml.CodeGen
         /// <summary>
         /// Gets the <see cref="NamespaceAliasOptions"/> object to use during the code
         /// generation process.
-        /// </summary>s
+        /// </summary>
         NamespaceAliasOptions NamespaceAliasOptions { get; }
 
         /// <summary>

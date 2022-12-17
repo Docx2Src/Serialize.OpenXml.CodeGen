@@ -108,10 +108,7 @@ namespace Serialize.OpenXml.CodeGen
             bool hasHandlers = settings?.Handlers != null;
 
             // Check to see if the task has been cancelled.
-            if (token.IsCancellationRequested)
-            {
-                token.ThrowIfCancellationRequested();
-            }
+            token.ThrowIfCancellationRequested();
 
             // Use the custom handler methods if present and provide actual code
             if (hasHandlers && settings.Handlers.TryGetValue(part.OpenXmlPart.GetType(),
@@ -137,7 +134,7 @@ namespace Serialize.OpenXml.CodeGen
             if (token.IsCancellationRequested)
             {
                 result.Clear();
-                token.ThrowIfCancellationRequested();
+                throw new OperationCanceledException(token);
             }
 
             // Make sure that the namespace for the current part is captured
@@ -237,7 +234,7 @@ namespace Serialize.OpenXml.CodeGen
                     if (token.IsCancellationRequested)
                     {
                         result.Clear();
-                        token.ThrowIfCancellationRequested();
+                        throw new OperationCanceledException(token);
                     }
 
                     // If the current child object has already been created, simply add a reference
@@ -310,7 +307,7 @@ namespace Serialize.OpenXml.CodeGen
                 if (token.IsCancellationRequested)
                 {
                     result.Clear();
-                    token.ThrowIfCancellationRequested();
+                    throw new OperationCanceledException(token);
                 }
 
                 // Implement the custom helper if present
@@ -366,7 +363,7 @@ namespace Serialize.OpenXml.CodeGen
                             if (token.IsCancellationRequested)
                             {
                                 result.Clear();
-                                token.ThrowIfCancellationRequested();
+                                throw new OperationCanceledException(token);
                             }
 
                             if (paramProp.PropertyType == rootElementType)
@@ -716,10 +713,7 @@ namespace Serialize.OpenXml.CodeGen
                     { Direction = FieldDirection.Ref });
 
                 // Check to see if the task has been cancelled.
-                if (token.IsCancellationRequested)
-                {
-                    token.ThrowIfCancellationRequested();
-                }
+                token.ThrowIfCancellationRequested();
 
                 var relCodeStatements = part.GenerateRelationshipCodeStatements(
                     new CodeThisReferenceExpression());
@@ -735,10 +729,7 @@ namespace Serialize.OpenXml.CodeGen
                     foreach (var pair in part.Parts)
                     {
                         // Check to see if the task has been cancelled.
-                        if (token.IsCancellationRequested)
-                        {
-                            token.ThrowIfCancellationRequested();
-                        }
+                        token.ThrowIfCancellationRequested();
 
                         entryMethod.Statements.AddRange(BuildEntryMethodCodeStatements(
                             pair,
@@ -769,10 +760,7 @@ namespace Serialize.OpenXml.CodeGen
                 foreach (var ns in namespaces)
                 {
                     // Check to see if the task has been cancelled.
-                    if (token.IsCancellationRequested)
-                    {
-                        token.ThrowIfCancellationRequested();
-                    }
+                    token.ThrowIfCancellationRequested();
 
                     if (!String.IsNullOrWhiteSpace(ns.Value))
                     {

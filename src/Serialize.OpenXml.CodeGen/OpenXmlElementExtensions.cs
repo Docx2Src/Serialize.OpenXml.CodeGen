@@ -402,7 +402,7 @@ namespace Serialize.OpenXml.CodeGen
                 /********************************************************************************
                  * Custom element constructors
                  ********************************************************************************/
-                // OpenXmlUknownElement objects should use a static method
+                // OpenXmlUnknownElement objects should use a static method
                 // OpenXmlUnknownElement.CreateOpenXmlUnknownElement
                 // instead of the actual ctor method.
                 if (e is OpenXmlUnknownElement unknownElement)
@@ -459,10 +459,10 @@ namespace Serialize.OpenXml.CodeGen
 
                     createExpression.Parameters.AddRange(new CodeExpression[]
                     {
-                    new CodeFieldReferenceExpression(
-                        new CodeVariableReferenceExpression(xmlNodeTypeName),
-                        xmlNodeVal.ToString()),
-                    new CodePrimitiveExpression(miscNode.OuterXml)
+                        new CodeFieldReferenceExpression(
+                            new CodeVariableReferenceExpression(xmlNodeTypeName),
+                            xmlNodeVal.ToString()),
+                        new CodePrimitiveExpression(miscNode.OuterXml)
                     });
                 }
                 // OpenXmlLeafTextElement classes have constructors that take in
@@ -547,7 +547,6 @@ namespace Serialize.OpenXml.CodeGen
                         // CodePrimitiveExpression include
                         // null; string; 16-, 32-, and 64-bit signed integers;
                         // and single-precision and double-precision floating-point numbers.
-
                         if (propVal is DateTime)
                         {
                             var dt = Convert.ToDateTime(propVal);
