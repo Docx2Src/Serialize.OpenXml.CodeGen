@@ -96,7 +96,6 @@ namespace Serialize.OpenXml.CodeGen
             CancellationToken token)
         {
             // Argument validation
-            if (part is null) throw new ArgumentNullException(nameof(part));
             if (settings is null) throw new ArgumentNullException(nameof(settings));
             if (blueprints is null) throw new ArgumentNullException(nameof(blueprints));
 
